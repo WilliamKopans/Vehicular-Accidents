@@ -20,10 +20,23 @@ setwd("/Volumes/Courses/ES218_A_SP/wokopa26/Vehicular accidents")
 Accidents_Original <- readRDS("farsp.RDS")
 
 alcohol <- read.csv("alcohol.csv")
+alcohol <- alcohol %>% 
+  mutate(alcohol = if_else(alcohol %in% c("Unknown", "Not reported"), NA, alcohol))
+
 body_typ <- read.csv("body_typ.csv")
+body_typ <- body_typ %>% 
+  mutate(body_typ = if_else(body_typ %in% c("Unknown body type", "Not Reported"), NA, body_typ))
+
 col_names <- read.csv("column_name_description.csv")
+
 inj_sev <- read.csv("inj_sev.csv")
+inj_sev <- inj_sev %>% 
+  mutate(inj_sev = if_else(inj_sev %in% c("Unknown/Not Reported", "N/A"), NA, inj_sev))
+
 man_coll <- read.csv("man_coll.csv")
+man_coll <- man_coll %>% 
+  mutate(man_coll = if_else(man_coll %in% c("Not Reported", "Unknown"), NA, man_coll))
+
 sex <- read.csv("sex.csv")
 state_code <- read.csv("state_code.csv")
 ```
@@ -34,31 +47,26 @@ col_names <- setNames(col_names$column_name, col_names$description)
 names(col_names) <- gsub(" ", "_", names(col_names))
 
 Names_Changed <- Accidents_Original %>%
+  rename(alcohol = drinking) %>% 
   left_join(state_code, by = c("state" = "state_code")) %>%
   left_join(sex, by = "sex") %>%
   left_join(man_coll, by = "man_coll") %>%
   left_join(inj_sev, by = "inj_sev") %>%
   left_join(body_typ, by = "body_typ") %>%
-  mutate(state = as.character(state_name),
-         sex = as.character(description.x),
-         man_coll = as.character(description.y),
-         inj_sev = as.character(description.y),
-         body_typ = as.character(description.y)) %>%
-  select(-state_name, -description.x, -description.y,-description.x.x, -description.y.y) %>% 
-  rename("alcohol" = "drinking")%>%
-  rename(!!!col_names) 
-
-
-Names_Changed <- Names_Changed %>% 
-  mutate(Datetime = ymd_hm(paste(Names_Changed$Accident_year, Names_Changed$Accident_month, Names_Changed$Accident_day, Names_Changed$Accident_hour, Names_Changed$Accident_minute))) %>% 
-  mutate(Month_Name = month(Accident_month, label = TRUE)) 
-
-
-
-Names_Changed <-  Names_Changed %>% 
-  mutate(across(c(Accident_year, Accident_month, Accident_day,
-                  Accident_hour, Accident_minute), ~replace(., . == 99, NA))) %>% 
-  mutate(across(c(Age), ~replace(., . == 999, NA))) %>% 
+  left_join(alcohol, by = "alcohol") %>%
+  mutate(
+    state = as.character(state_name),
+    sex = as.character(description.x),
+    man_coll = as.character(description.y),
+    alcohol = as.character(description),
+    inj_sev = as.character(description.y),
+    body_typ = as.character(description.y),
+    Datetime = ymd_hm(paste(year, month, day, hour, minute)),
+    Month_Name = month(month, label = TRUE)
+  ) %>%
+  rename(!!!col_names) %>% 
+  mutate(across(c(Accident_year, Accident_month, Accident_day, Accident_hour, Accident_minute, Age), ~replace(., . == 99, NA)),
+         across(c(Age), ~replace(., . == 999, NA))) %>%
   mutate(
     State = as.factor(State),
     County = as.factor(County),
@@ -68,18 +76,15 @@ Names_Changed <-  Names_Changed %>%
     Injury_severity = as.factor(Injury_severity),
     Datetime = as.POSIXct(Datetime),
     Date = as.Date(Datetime),
-    Accident_weekday = wday(Datetime, label = TRUE) 
-  ) %>% 
-  filter(Age < 150)
+    Accident_weekday = wday(Datetime, label = TRUE)
+  ) %>%
+  filter(Age < 150) %>%
+  drop_na(c("Accident_year", "Accident_month", "Accident_day", "Accident_hour", "Accident_minute")) %>% 
+  select(-State, -description.x, -description.y, -description.x.x, -description.y.y)
 
+Names_Changed$Datetime <- ymd_hm(paste(Names_Changed$Accident_year, Names_Changed$Accident_month, Names_Changed$Accident_day, Names_Changed$Accident_hour, Names_Changed$Accident_minute))
+Names_Changed$Month_Name <- month(Names_Changed$Accident_month, label = TRUE)
 
-
-
-#### Change to POSIX
-
-Names_Changed <- Names_Changed[complete.cases(Names_Changed[c("Accident_year", "Accident_month", "Accident_day", "Accident_hour", "Accident_minute")]), ] %>% 
-  mutate(Datetime = ymd_hm(paste(Accident_year, Accident_month, Accident_day, Accident_hour, Accident_minute))) %>% 
-  mutate(Month_Name = month(Accident_month, label = TRUE))
 
 ```
 
@@ -90,7 +95,7 @@ Names_Changed <- Names_Changed[complete.cases(Names_Changed[c("Accident_year", "
 
 
 # 1. Number of accidents per state
-ggplot(Names_Changed %>% filter(!is.na(State)), aes(x = State)) +
+ggplot(Names_Changed %>% filter(!is.na(state_name)), aes(x = state_name)) +
   geom_bar() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   ggtitle("Number of Accidents per State")
