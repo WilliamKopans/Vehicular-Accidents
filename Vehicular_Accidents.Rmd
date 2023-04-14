@@ -2,8 +2,8 @@
 title: "Vehicular Accidents"
 author: "William Kopans"
 date: "`r Sys.Date()`"
-output: html_document
-html_document:
+output: 
+  html_document:
     code_folding: hide
 ---
 
@@ -21,23 +21,26 @@ Accidents_Original <- readRDS("farsp.RDS")
 
 alcohol <- read.csv("alcohol.csv")
 alcohol <- alcohol %>% 
-  mutate(alcohol = if_else(alcohol %in% c("Unknown", "Not reported"), NA, alcohol))
+  mutate(description = if_else(description %in% c("Unknown", "Not reported"), NA, description))
 
 body_typ <- read.csv("body_typ.csv")
 body_typ <- body_typ %>% 
-  mutate(body_typ = if_else(body_typ %in% c("Unknown body type", "Not Reported"), NA, body_typ))
+  mutate(description = if_else(description %in% c("Unknown body type", "Not Reported"), NA, description))
 
 col_names <- read.csv("column_name_description.csv")
 
 inj_sev <- read.csv("inj_sev.csv")
 inj_sev <- inj_sev %>% 
-  mutate(inj_sev = if_else(inj_sev %in% c("Unknown/Not Reported", "N/A"), NA, inj_sev))
+  mutate(description = if_else(description %in% c("Unknown/Not Reported", "N/A"), NA, description))
 
 man_coll <- read.csv("man_coll.csv")
 man_coll <- man_coll %>% 
-  mutate(man_coll = if_else(man_coll %in% c("Not Reported", "Unknown"), NA, man_coll))
+  mutate(description = if_else(description %in% c("Not Reported", "Unknown"), NA, description))
 
 sex <- read.csv("sex.csv")
+sex <- sex %>% 
+  mutate(description = if_else(description %in% c("not reported", "unknown"), NA, description))
+
 state_code <- read.csv("state_code.csv")
 ```
 
@@ -54,6 +57,9 @@ Names_Changed <- Accidents_Original %>%
   left_join(inj_sev, by = "inj_sev") %>%
   left_join(body_typ, by = "body_typ") %>%
   left_join(alcohol, by = "alcohol") %>%
+    mutate(across(c(year, month, day, hour, minute, age), ~replace(., . == 99, NA)),
+         across(c(age), ~replace(., . == 999, NA))) %>%
+  drop_na(c("year", "month", "day", "hour", "minute")) %>% 
   mutate(
     state = as.character(state_name),
     sex = as.character(description.x),
@@ -65,8 +71,6 @@ Names_Changed <- Accidents_Original %>%
     Month_Name = month(month, label = TRUE)
   ) %>%
   rename(!!!col_names) %>% 
-  mutate(across(c(Accident_year, Accident_month, Accident_day, Accident_hour, Accident_minute, Age), ~replace(., . == 99, NA)),
-         across(c(Age), ~replace(., . == 999, NA))) %>%
   mutate(
     State = as.factor(State),
     County = as.factor(County),
@@ -76,14 +80,12 @@ Names_Changed <- Accidents_Original %>%
     Injury_severity = as.factor(Injury_severity),
     Datetime = as.POSIXct(Datetime),
     Date = as.Date(Datetime),
-    Accident_weekday = wday(Datetime, label = TRUE)
-  ) %>%
-  filter(Age < 150) %>%
-  drop_na(c("Accident_year", "Accident_month", "Accident_day", "Accident_hour", "Accident_minute")) %>% 
-  select(-State, -description.x, -description.y, -description.x.x, -description.y.y)
-
-Names_Changed$Datetime <- ymd_hm(paste(Names_Changed$Accident_year, Names_Changed$Accident_month, Names_Changed$Accident_day, Names_Changed$Accident_hour, Names_Changed$Accident_minute))
-Names_Changed$Month_Name <- month(Names_Changed$Accident_month, label = TRUE)
+    Accident_weekday = wday(Datetime, label = TRUE),
+    Month_Name = month(Datetime, label = TRUE), # create month name column
+    Year = year(Datetime)
+    ) %>%
+  filter(Age < 100) %>%
+  select(-State, -description.x, -description.y, -description.x.x, -description.y.y,-description)
 
 
 ```
@@ -106,12 +108,8 @@ ggplot(Names_Changed %>% filter(!is.na(Datetime)), aes(x = month(Datetime, label
   ggtitle("Number of Accidents per Month")
 
 # 3. Time series plot
-ggplot(Names_Changed, aes(x = Date, y = ..count..)) +
+ggplot(Names_Changed, aes(x = Date, y = after_stat(count))) +
   geom_line(stat = "count") +
-  labs(x = "Date", y = "Accidents", title = "Accident Rates Over Time")
-
-ggplot(Names_Changed, aes(x = Date, y = ..count..)) +
-  geom_point(stat = "count", alpha = 0.2) +
   labs(x = "Date", y = "Accidents", title = "Accident Rates Over Time")
 
 # 4. Number of accidents per hour
@@ -161,17 +159,110 @@ ggplot(Names_Changed, aes(x = Age)) +
 # 12. Box plot of age by injury severity
 ggplot(Names_Changed, aes(x = Injury_severity, y = Age)) +
   geom_boxplot() +
-  labs(x = "Injury Severity", y = "Age", title = "Age Distribution by Injury Severity")
+  labs(x = "Injury Severity", y = "Age", title = "Age Distribution by Injury Severity") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 # 13. Bar plot of manner of collision
 ggplot(Names_Changed, aes(x = Manner_of_collision)) +
   geom_bar() +
-  labs(x = "Manner of Collision", y = "Count", title = "Manner of Collision Distribution")
+  labs(x = "Manner of Collision", y = "Count", title = "Manner of Collision Distribution") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 
-# Plot number of accidents by hour of the day
+# 14. Plot number of accidents by hour of the day
+accidents_by_hour_month <- Names_Changed %>%
+  group_by(Accident_hour, Month_Name) %>%
+  summarize(Count = n()) %>%
+  ungroup()
 
-# Number of accidents per day of the month
+# 15. Plot the stacked bar plot of accidents by hour of the day, colored by month
+ggplot(accidents_by_hour_month, aes(x = Accident_hour, y = Count, fill = factor(Month_Name))) +
+  geom_col(position = "stack") +
+  labs(title = "Number of Accidents by Hour of the Day and Month") +
+  scale_fill_discrete(name = "Hour of the Day") +
+  theme_minimal()
+
+# 16. Scatter plot showing the relationship between age and the number of persons involved in accidents.
+ggplot(Names_Changed, aes(x = Age, y = Number_of_persons_involved)) + 
+  geom_point(alpha = 0.3) +
+  labs(x = "Age", y = "Number of persons involved")
+
+# 17. Heatmap showing the density of accidents based on the day of the month and the time of day.
+ggplot(Names_Changed, aes(x = Accident_hour, y = Accident_day)) + 
+  geom_bin2d(bins = 20) +
+  labs(x = "Hour of day", y = "Day of month", fill = "Number of accidents")
+
+# 18. Bar plot showing the total number of accidents on each day of the week.
+ggplot(Names_Changed, aes(x = Accident_weekday)) + 
+  geom_bar() +
+  labs(x = "Day of week", y = "Number of accidents")
+
+# 19. Bar plot showing the total number of accidents in each year.
+ggplot(Names_Changed, aes(x = Accident_year)) + 
+  geom_bar() +
+  labs(x = "Year", y = "Number of accidents")
+
+# 20. Scatter plot showing the relationship between age and the time of day when accidents occur.
+ggplot(Names_Changed, aes(x = Accident_hour, y = Age)) + 
+  geom_point(alpha = 0.3) +
+  labs(x = "Hour of day", y = "Age")
+
+# 21. Stacked bar plot showing the number of accidents for each vehicle body type, colored by the injury severity.
+ggplot(Names_Changed, aes(x = Vehicle_body_type, fill = Injury_severity)) + 
+  geom_bar(position = "stack") +
+  labs(x = "Vehicle body type", y = "Number of accidents")
+
+# 22. Box plot showing the distribution of age for each sex involved in accidents.
+ggplot(Names_Changed, aes(x = Sex, y = Age)) + 
+  geom_boxplot() +
+  labs(x = "Sex", y = "Age")
+
+# 23. Stacked bar plot showing the number of accidents for each month, colored by the injury severity.
+ggplot(Names_Changed, aes(x = Month_Name, fill = Injury_severity)) + 
+  geom_bar() +
+  labs(x = "Month", y = "Number of accidents")
+
+# 24. Density plot showing the distribution of the number of persons involved in accidents.
+ggplot(Names_Changed, aes(x = Number_of_persons_involved)) + 
+  geom_density() +
+  labs(x = "Number of persons involved", y = "Density")
+
+# 25. Box plot showing the distribution of age for each manner of collision.
+ggplot(Names_Changed, aes(x = Manner_of_collision, y = Age)) + 
+  geom_boxplot() +
+  labs(x
+
+# 26. Heatmap of accidents by hour and day of the week.
+accidents_by_hour_weekday <- Names_Changed %>%
+  group_by(hour = hour(Datetime), weekday = wday(Datetime, label = TRUE)) %>%
+  summarize(n = n())
+
+ggplot(accidents_by_hour_weekday, aes(x = hour, y = weekday, fill = n)) +
+  geom_tile() +
+  scale_fill_gradient(low = "#f7f7f7", high = "#e31a1c") +
+  labs(x = "Hour of day", y = "Day of week", fill = "Number of accidents")
+
+# 27. Faceted bar plot of accidents by vehicle body type and injury severity, colored by sex.
+
+accidents_by_body_type_injury_sex <- Names_Changed %>%
+  filter(!is.na(Vehicle_body_type), !is.na(Injury_severity)) %>%
+  group_by(Vehicle_body_type, Injury_severity, Sex) %>%
+  summarize(n = n())
+
+ggplot(accidents_by_body_type_injury_sex, aes(x = Vehicle_body_type, y = n, fill = Injury_severity))+
+  geom_col(position = "dodge") +
+  facet_wrap(~ Sex, scales = "free_y") +
+  labs(x = "Vehicle body type", y = "Number of accidents", fill = "Injury severity")
+
+# 28. Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex.
+
+ggplot(Names_Changed, aes(x = Accident_hour, y = Age, color = Injury_severity)) +
+    geom_point(alpha = 0.5) +
+    facet_wrap(~ Sex) +
+    labs(x = "Hour of day", y = "Age", color = "Injury severity")
+
+
+
 
 ```
 
@@ -179,9 +270,37 @@ ggplot(Names_Changed, aes(x = Manner_of_collision)) +
 
 
 
+``` {r Year In Review}
 
 
+accidents_per_day <- Names_Changed %>%
+  mutate(DoY = yday(Datetime), Month = month(Datetime), Day = day(Datetime), Hour = hour(Datetime)) %>%
+  group_by(Month, Day, Hour) %>%
+  summarize(count = n()) %>%
+  ungroup()
 
+ggplot(accidents_per_day, aes(x = Day, y = Month, fill = count)) +
+  geom_tile(color = "white") +
+  scale_y_continuous(trans = 'reverse', breaks = 1:12, labels = month.abb) +
+  labs(x = "Day", y = "Month", fill = "Accidents", title = "Accidents per Day of the Year (Aggregating All Years)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+##
+
+ggplot(accidents_per_day, aes(x = Day, y = Hour, fill = count - mean(count))) +
+  geom_tile(width = 0.5) +
+  scale_y_reverse() +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+  facet_wrap(~ month(Month, label = TRUE)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0, hjust = 1)) +
+  labs(x = "Day", y = "Time", fill = "Accidents", title = "New Year\'s Eve and nighttime is dangerous!")
+
+
+```
+
+
+# Next split into states or reigions like New England where hours of daylight will change and may cause more accidents 
 
 
 
