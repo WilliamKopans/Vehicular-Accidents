@@ -1,0 +1,186 @@
+---
+title: "Vehicular Accidents"
+author: "William Kopans"
+date: "`r Sys.Date()`"
+output: html_document
+html_document:
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+``` {r Import Dataset and libraries, message=FALSE}
+library(ggplot2)
+library(tidyverse)
+library(lubridate)
+setwd("/Volumes/Courses/ES218_A_SP/wokopa26/Vehicular accidents")
+Accidents_Original <- readRDS("farsp.RDS")
+
+alcohol <- read.csv("alcohol.csv")
+body_typ <- read.csv("body_typ.csv")
+col_names <- read.csv("column_name_description.csv")
+inj_sev <- read.csv("inj_sev.csv")
+man_coll <- read.csv("man_coll.csv")
+sex <- read.csv("sex.csv")
+state_code <- read.csv("state_code.csv")
+```
+
+
+``` {r Data Manipulation}
+col_names <- setNames(col_names$column_name, col_names$description)
+names(col_names) <- gsub(" ", "_", names(col_names))
+
+Names_Changed <- Accidents_Original %>%
+  left_join(state_code, by = c("state" = "state_code")) %>%
+  left_join(sex, by = "sex") %>%
+  left_join(man_coll, by = "man_coll") %>%
+  left_join(inj_sev, by = "inj_sev") %>%
+  left_join(body_typ, by = "body_typ") %>%
+  mutate(state = as.character(state_name),
+         sex = as.character(description.x),
+         man_coll = as.character(description.y),
+         inj_sev = as.character(description.y),
+         body_typ = as.character(description.y)) %>%
+  select(-state_name, -description.x, -description.y,-description.x.x, -description.y.y) %>% 
+  rename("alcohol" = "drinking")%>%
+  rename(!!!col_names) 
+
+
+Names_Changed <- Names_Changed %>% 
+  mutate(Datetime = ymd_hm(paste(Names_Changed$Accident_year, Names_Changed$Accident_month, Names_Changed$Accident_day, Names_Changed$Accident_hour, Names_Changed$Accident_minute))) %>% 
+  mutate(Month_Name = month(Accident_month, label = TRUE)) 
+
+
+
+Names_Changed <-  Names_Changed %>% 
+  mutate(across(c(Accident_year, Accident_month, Accident_day,
+                  Accident_hour, Accident_minute), ~replace(., . == 99, NA))) %>% 
+  mutate(across(c(Age), ~replace(., . == 999, NA))) %>% 
+  mutate(
+    State = as.factor(State),
+    County = as.factor(County),
+    Manner_of_collision = as.factor(Manner_of_collision),
+    Vehicle_body_type = as.factor(Vehicle_body_type),
+    Sex = as.factor(Sex),
+    Injury_severity = as.factor(Injury_severity),
+    Datetime = as.POSIXct(Datetime),
+    Date = as.Date(Datetime),
+    Accident_weekday = wday(Datetime, label = TRUE) 
+  ) %>% 
+  filter(Age < 150)
+
+
+
+
+#### Change to POSIX
+
+Names_Changed <- Names_Changed[complete.cases(Names_Changed[c("Accident_year", "Accident_month", "Accident_day", "Accident_hour", "Accident_minute")]), ] %>% 
+  mutate(Datetime = ymd_hm(paste(Accident_year, Accident_month, Accident_day, Accident_hour, Accident_minute))) %>% 
+  mutate(Month_Name = month(Accident_month, label = TRUE))
+
+```
+
+
+
+``` {r graphing}
+
+
+
+# 1. Number of accidents per state
+ggplot(Names_Changed %>% filter(!is.na(State)), aes(x = State)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  ggtitle("Number of Accidents per State")
+
+# 2. Number of accidents per month
+ggplot(Names_Changed %>% filter(!is.na(Datetime)), aes(x = month(Datetime, label = TRUE))) +
+  geom_bar() +
+  ggtitle("Number of Accidents per Month")
+
+# 3. Time series plot
+ggplot(Names_Changed, aes(x = Date, y = ..count..)) +
+  geom_line(stat = "count") +
+  labs(x = "Date", y = "Accidents", title = "Accident Rates Over Time")
+
+ggplot(Names_Changed, aes(x = Date, y = ..count..)) +
+  geom_point(stat = "count", alpha = 0.2) +
+  labs(x = "Date", y = "Accidents", title = "Accident Rates Over Time")
+
+# 4. Number of accidents per hour
+ggplot(Names_Changed %>% filter(!is.na(Accident_hour)), aes(x = Accident_hour)) +
+  geom_bar() +
+  ggtitle("Number of Accidents per Hour")
+
+# 5. Distribution of the age of persons involved in accidents
+ggplot(Names_Changed %>% filter(!is.na(Age)), aes(x = Age)) +
+  geom_histogram(binwidth = 1) +
+  ggtitle("Distribution of Age of Persons Involved in Accidents")
+
+# 6. Number of accidents by sex
+ggplot(Names_Changed %>% filter(!is.na(Sex)), aes(x = Sex)) +
+  geom_bar() +
+  ggtitle("Number of Accidents by Sex")
+
+# 7. Number of accidents with alcohol involvement
+ggplot(Names_Changed %>% filter(!is.na(Alcohol_involvement)), aes(x = Alcohol_involvement)) +
+  geom_bar() +
+  ggtitle("Number of Accidents with Alcohol Involvement")
+
+# 8. Distribution of injury severity - Duplicate?
+ggplot(Names_Changed %>% filter(!is.na(Injury_severity)), aes(x = Injury_severity)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  ggtitle("Distribution of Injury Severity")
+
+# 9. Number of accidents by manner of collision - Duplicate?
+ggplot(Names_Changed %>% filter(!is.na(Manner_of_collision)), aes(x = Manner_of_collision)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  ggtitle("Number of Accidents by Manner of Collision")
+
+# 10. Number of accidents by vehicle body type
+ggplot(Names_Changed %>% filter(!is.na(Vehicle_body_type)), aes(x = Vehicle_body_type)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  ggtitle("Number of Accidents by Vehicle Body Type")
+
+
+# 11. Histogram of age
+ggplot(Names_Changed, aes(x = Age)) +
+  geom_histogram(binwidth = 1) +
+  labs(x = "Age", y = "Count", title = "Age Distribution of Persons Involved in Accidents")
+
+# 12. Box plot of age by injury severity
+ggplot(Names_Changed, aes(x = Injury_severity, y = Age)) +
+  geom_boxplot() +
+  labs(x = "Injury Severity", y = "Age", title = "Age Distribution by Injury Severity")
+
+# 13. Bar plot of manner of collision
+ggplot(Names_Changed, aes(x = Manner_of_collision)) +
+  geom_bar() +
+  labs(x = "Manner of Collision", y = "Count", title = "Manner of Collision Distribution")
+
+
+# Plot number of accidents by hour of the day
+
+# Number of accidents per day of the month
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
