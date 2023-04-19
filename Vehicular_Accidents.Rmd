@@ -8,7 +8,15 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE,
+                      cache = TRUE,
+                      cache.path = ".cache",
+                      cache.size = 1000,
+                      cache.lazy = TRUE,
+                      cache.rebuild = FALSE,
+                      cache=TRUE, 
+                      cache.extra=list(png="images/", pdf="documents/"))
+
 ```
 
 
@@ -43,7 +51,7 @@ sex <- sex %>%
 
 state_code <- read.csv("state_code.csv")
 ```
-
+# remember to remove setwd
 
 ``` {r Data Manipulation}
 col_names <- setNames(col_names$column_name, col_names$description)
@@ -77,11 +85,11 @@ Names_Changed <- Accidents_Original %>%
     Manner_of_collision = as.factor(Manner_of_collision),
     Vehicle_body_type = as.factor(Vehicle_body_type),
     Sex = as.factor(Sex),
-    Injury_severity = as.factor(Injury_severity),
+    Injury_severity = factor(Injury_severity, levels = c("No Apparent Injury", "Injured, Severity Unknown", "Possible Injury", "Suspected Minor Injury", "Suspected Serious Injury", "Non-incapacitating injury", "Fatal Injury", "Died Prior to Crash")),
+    Injury_Severity_Basic = if_else(Injury_severity %in% c("Fatal Injury", "Died Prior to Crash"), "Fatal", "Non-Fatal"),
     Datetime = as.POSIXct(Datetime),
     Date = as.Date(Datetime),
-    Accident_weekday = wday(Datetime, label = TRUE),
-    Month_Name = month(Datetime, label = TRUE), # create month name column
+    Accident_weekday = factor(wday(Datetime, label = TRUE), levels = c("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")),
     Year = year(Datetime)
     ) %>%
   filter(Age < 100) %>%
@@ -161,7 +169,7 @@ Graph 10: Number of Accidents by Vehicle Body Type - Somewhat redundant given wh
 ```{r Graph 10: Number of Accidents by Vehicle Body Type}
 accidents_by_body_type_injury_sex <- Names_Changed %>%
   filter(!is.na(Vehicle_body_type), !is.na(Injury_severity)) %>%
-  group_by(Vehicle_body_type, Injury_severity, Sex) %>%
+  group_by(Vehicle_body_type, Injury_severity, Sex, Alcohol_involvement) %>%
   summarize(n = n()) %>% 
   mutate(Vehicle_body_type = case_when(
     grepl("sedan|coupe|convertible|hatchback|automobile|compact", Vehicle_body_type, ignore.case = TRUE) ~ "Automobiles",
@@ -207,9 +215,9 @@ theme(axis.text.x = element_text(angle = 90, hjust = 1))
 Graph 14: Number of Accidents by Hour of the Day and Month
 ```{r Graph 14: Number of Accidents by Hour of the Day and Month}
 accidents_by_hour_month <- Names_Changed %>%
-group_by(Accident_hour, Month_Name) %>%
-summarize(Count = n()) %>%
-ungroup()
+  group_by(Accident_hour, Month_Name) %>%
+  summarize(Count = n()) %>%
+  ungroup()
 
 ggplot(accidents_by_hour_month, aes(x = Accident_hour, y = Count, fill = factor(Month_Name))) +
 geom_col(position = "stack") +
@@ -253,11 +261,16 @@ geom_bar() +
 labs(x = "Year", y = "Number of accidents", title = "Total Number of Accidents by Year")
 ```
 
-Graph 20: Relationship between Age and Time of Day When Accidents Occur
+Graph 20: Relationship between Age and Time of Day When Accidents Occur - why 24 and 0 different? FIX THIS
 ```{r Graph 20: Relationship between Age and Time of Day When Accidents Occur}
+# ggplot(Names_Changed, aes(x = Accident_hour, y = Age)) +
+# geom_point(alpha = 0.003) +
+# labs(x = "Hour of day", y = "Age", title = "Relationship between Age and Time of Day When Accidents Occur")
 ggplot(Names_Changed, aes(x = Accident_hour, y = Age)) +
-geom_point(alpha = 0.003) +
-labs(x = "Hour of day", y = "Age", title = "Relationship between Age and Time of Day When Accidents Occur")
+  geom_point(alpha = 0.003) +
+  labs(x = "Hour of day", y = "Age", title = "Relationship between Age and Time of Day When Accidents Occur") +
+  scale_alpha(trans = "log", range = c(0.005, 0.5))
+
 ```
 
 Graph 21: Number of Accidents by Vehicle Body Type and Injury Severity
@@ -323,7 +336,7 @@ theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 Graph 28: Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex
 ```{r Graph 28: Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex}
-ggplot(Names_Changed, aes(x = Accident_hour, y = Age, color = Injury_severity)) +
+ggplot(Names_Changed, aes(x = Accident_hour, y = Age, color = Injury_Severity_Basic)) +
 geom_point(alpha = 0.01) +
 facet_wrap(~ Sex) +
 labs(x = "Hour of day", y = "Age", color = "Injury severity", title = "Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex")+
@@ -416,23 +429,32 @@ ggplot(data = Names_Changed, aes(x = Age, y = Number_of_persons_involved)) +
   labs(x = "Age", y = "Number of Persons Involved")
 ```
 
-Plot 38: Ridge plot of Age distribution by Injury Severity
+Plot 38: Ridge plot of Age distribution by Injury Severity (Why are these different?)
 ```{r Plot38, fig.cap="Ridge plot showing the distribution of age of individuals involved in accidents, separated by injury severity."}
 library(ggridges)
 ggplot(data = Names_Changed, aes(x = Age, y = Injury_severity, fill = Injury_severity)) +
   geom_density_ridges() +
   theme_minimal() +
   labs(x = "Age", y = "Injury Severity")
+
+ggplot(data = Names_Changed, aes(x = Age, y = ..count.., fill = Injury_severity)) +
+  stat_density(geom = "line") +
+  scale_fill_discrete(name = "Injury Severity") +
+  labs(x = "Age", y = "Count of Rows") +
+  theme_minimal()+
+  facet_wrap(~ Injury_severity, scales = "free")+
+  xlim(0, 100)
+
 ```
 
-Plot 39: Bar plot of Number of Accidents by Vehicle Body Type, faceted by Alcohol Involvement
+Plot 39: Bar plot of Number of Accidents by Vehicle Body Type, faceted by Alcohol Involvement (Double check `accidents_by_body_type_injury_sex` to make sure this is working properly)
 ```{r Plot39, fig.cap="Bar plot showing the number of accidents by vehicle body type, faceted by alcohol involvement."}
-ggplot(data = Names_Changed, aes(x = Vehicle_body_type)) +
-  geom_bar() +
+ggplot(data = accidents_by_body_type_injury_sex, aes(x = Vehicle_body_type, y = n)) +
+  geom_col() +
   facet_wrap(~ Alcohol_involvement) +
   theme_minimal() +
   labs(x = "Vehicle Body Type", y = "Number of Accidents") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
 Plot 40: Scatter plot with jitter for the Number of Persons Involved in Accidents by Hour, colored by Sex
@@ -465,31 +487,151 @@ ggplot(data = monthly_accidents, aes(x = month(Month, label = TRUE), y = n, fill
   labs(x = "Month", y = "Number of Accidents", fill = "Year")
 ```
 
+Plot 43: Ridgeline plot of the number of accidents by state and hour. RI and DC have some issues with early morning accidents!
+``` {R Plot 43, fig.cap="Ridgeline plot of number of accidents by state and hour"}
+ggplot(Names_Changed, aes(x = Accident_hour, y = state_name, fill = state_name)) +
+    geom_density_ridges() +
+    labs(title = "Ridgeline Plot: Accident Hour", x = "Hour", y = "State") +
+    theme_ridges()
+```
+
+Plot 44: Boxplot of Age by Injury Severity
+``` {r Plot 44, fig.cap="Boxplot of Age by Injury Severity"}
+ggplot(Names_Changed, aes(x = Injury_severity, y = Age, fill = Injury_severity)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Age by Injury Severity", x = "Injury Severity", y = "Age") +
+  theme_minimal()
+```
+
+Plot 45: Normality: Q-Q plot of Age
+``` {r Plot 45, Normality: Q-Q plot of Age}
+ggplot(Names_Changed, aes(sample = Age)) +
+  geom_qq() +
+  geom_qq_line(color = "red") +
+  labs(title = "Q-Q Plot of Age", x = "Theoretical Quantiles", y = "Sample Quantiles") +
+  theme_minimal()
+```
+
+Plot 46: Linearity: Scatterplot of Age vs. Number_of_persons_involved with a LOESS fit (takes forever to render)
+``` {r Plot 46, Linearity: Scatterplot of Age vs. Number_of_persons_involved with a LOESS fit}
+# ggplot(Names_Changed, aes(x = Age, y = Number_of_persons_involved)) +
+#   geom_point(alpha = 0.2, aes(color = Sex)) +
+#   geom_smooth(method = "loess", se = FALSE, color = "red") +
+#   labs(title = "Scatterplot of Age vs. Number of Persons Involved with LOESS fit", x = "Age", y = "Number of Persons Involved") +
+#   theme_minimal()
+
+```
+
+Plot 47: Homoscedasticity: Residual plot (using a linear model as an example) (takes forever to render)
+``` {r Plot 47, Residual plot}
+# # Fit a linear model
+# model <- lm(Number_of_persons_involved ~ Age, data = Names_Changed)
+# 
+# # Create a residual plot
+# ggplot(data.frame(residuals = resid(model), fitted = fitted(model)), aes(x = fitted, y = residuals)) +
+#   geom_point(alpha = 0.2) +
+#   geom_smooth(se = FALSE, color = "red", method = "loess") +
+#   labs(title = "Residual Plot", x = "Fitted Values", y = "Residuals") +
+#   theme_minimal()
+
+```
+
+Plot 48: Density plot of Age (to check the distribution)
+``` {r Plot 48, Density plot of Age}
+ggplot(Names_Changed, aes(x = Age)) +
+  geom_density(fill = "steelblue", alpha = 0.5) +
+  labs(title = "Density Plot of Age", x = "Age", y = "Density") +
+  theme_minimal()
+
+```
+
+
 
 # Next split into states or reigions like New England where hours of daylight will change and may cause more accidents 
 ``` {r Split into states}
 
 Names_Changed <- Names_Changed %>%
   mutate(region = ifelse(state_name %in% c("Maine", "New Hampshire", "Vermont", "Massachusetts", "Rhode Island", "Connecticut"), "Northeast",
-                         ifelse(state_name %in% c("New York", "Pennsylvania", "New Jersey"), "Northeast",
-                                ifelse(state_name %in% c("Wisconsin", "Michigan", "Illinois", "Indiana", "Ohio"), "Midwest",
-                                       ifelse(state_name %in% c("Minnesota", "Iowa", "Missouri", "North Dakota", "South Dakota", "Nebraska", "Kansas"), "Midwest",
-                                              ifelse(state_name %in% c("Delaware", "Maryland", "District of Columbia", "Virginia", "West Virginia", "North Carolina", "South Carolina", "Georgia", "Florida"), "South",
-                                                     ifelse(state_name %in% c("Kentucky", "Tennessee", "Mississippi", "Alabama", "Oklahoma", "Texas", "Arkansas", "Louisiana"), "South",
-                                                            ifelse(state_name %in% c("Montana", "Idaho", "Wyoming", "Colorado", "New Mexico", "Arizona", "Utah", "Nevada"), "West",
-                                                                   ifelse(state_name %in% c("Washington", "Oregon", "California", "Alaska", "Hawaii"), "West", NA_character_)))))))))
+  ifelse(state_name %in% c("New York", "Pennsylvania", "New Jersey"), "Northeast",
+  ifelse(state_name %in% c("Wisconsin", "Michigan", "Illinois", "Indiana", "Ohio"), "Midwest",
+  ifelse(state_name %in% c("Minnesota", "Iowa", "Missouri", "North Dakota", "South Dakota", "Nebraska", "Kansas"), "Midwest",
+  ifelse(state_name %in% c("Delaware", "Maryland", "District of Columbia", "Virginia", "West Virginia", "North Carolina", "South Carolina", "Georgia", "Florida"), "South",
+  ifelse(state_name %in% c("Kentucky", "Tennessee", "Mississippi", "Alabama", "Oklahoma", "Texas", "Arkansas", "Louisiana"), "South",
+  ifelse(state_name %in% c("Montana", "Idaho", "Wyoming", "Colorado", "New Mexico", "Arizona", "Utah", "Nevada"), "West",
+  ifelse(state_name %in% c("Washington", "Oregon", "California", "Alaska", "Hawaii"), "West", NA_character_)))))))))
 
          
 ```
 
 
 
+# Do teens have more accidents on weekends? (Subset data or mutate a column identifying weekends and facet)
+
+# What leads to fatal accidents? (Subset data or mutate a column identifying fatal and facet)
+
 
 
 
 # Maybe use MWStats for time series analysis
 ``` {r Moving Window Statistics}
-# MwStatistics(Names_Changed, "Datetime", "Number_of_vehicles_involved", "Number_of_persons_involved", win = 100, stat = "Correlation", overlap = 0.5, genplot = TRUE, genDataFrame = TRUE, timeType = "POSIXct")
+
+SingleWindow <- function(statistic, data) {
+  if (!is.data.frame(data)) {
+    stop("The input data must be a dataframe.")
+  }
+  switch(statistic,
+         "correlation" = list(Value = cor(data[,2], data[,3]), Midpoint = data[ceiling(nrow(data)/2), 1]),
+         "p value" = list(Value = cor.test(data[,2], data[,3])$p.value, Midpoint = data[ceiling(nrow(data)/2), 1]),
+         "OLS" = list(Value = summary(lm(data[,3] ~ data[,2]))$coefficients, Midpoint = data[ceiling(nrow(data)/2), 1]),
+         stop("The input statistic must be one of 'correlation', 'p value', or 'OLS'.")
+  )
+}
+
+
+MovingWindow <- function(data, posix_col, col1, col2, window_days, step_size, statistic) {
+  # Ensure the input POSIX column is in POSIXct format
+  data[[posix_col]] <- as.POSIXct(data[[posix_col]])
+  
+  # Calculate the minimum and maximum POSIX values in the dataset
+  min_date <- min(data[[posix_col]])
+  max_date <- max(data[[posix_col]])
+  
+  # Convert window_days and step_size to seconds
+  window_seconds <- window_days * 24 * 60 * 60
+  step_seconds <- step_size * 24 * 60 * 60
+  
+  # Set the starting date for the moving window
+  current_date <- min_date
+  
+  results = list()
+  # Iterate through the dataset using the moving window
+  while (current_date + window_seconds <= max_date) {
+    # Filter the data within the moving window
+    window_data <- data[data[[posix_col]] >= current_date & data[[posix_col]] <= current_date + window_seconds, c(posix_col, col1, col2)]
+    
+    # Select the posix_col, col1, and col2 using dplyr and set it equal to win_val
+    win_val <- window_data %>%
+      select(all_of(c(posix_col, col1, col2)))
+    
+    # Print the win_val dataframe for the current window
+    # print(colnames(win_val))
+    result <- SingleWindow(statistic, win_val)
+    results <- rbind(results, data.frame(DateTime = current_date,
+                                         Value = result$Value[1],
+                                         Midpoint = as.POSIXct(result$Midpoint$Datetime)))
+    
+    # Move the window by step_size
+    current_date <- current_date + step_seconds
+    
+  }
+  
+  print(results)
+  ggplot(data = results, aes(x=Midpoint,Value))+
+    geom_point()
+  
+}
+
+MovingWindow(Names_Changed, "Datetime", "Number_of_persons_involved", "Number_of_vehicles_involved", 30, 15, "correlation")
 
 ```
 
