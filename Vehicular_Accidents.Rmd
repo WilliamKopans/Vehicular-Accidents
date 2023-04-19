@@ -8,14 +8,15 @@ output:
 ---
 
 ```{r setup, include=FALSE}
+setwd("/Volumes/Courses/ES218_A_SP/wokopa26/Vehicular accidents")
+library(here)
 knitr::opts_chunk$set(echo = TRUE,
                       cache = TRUE,
-                      cache.path = ".cache",
+                      cache.path = here::here(".cache"),
                       cache.size = 1000,
                       cache.lazy = TRUE,
                       cache.rebuild = FALSE,
-                      cache=TRUE, 
-                      cache.extra=list(png="images/", pdf="documents/"))
+                      cache.extra = list(png = here::here("images/"), pdf = here::here("documents/")))
 
 ```
 
@@ -24,7 +25,7 @@ knitr::opts_chunk$set(echo = TRUE,
 library(ggplot2)
 library(tidyverse)
 library(lubridate)
-setwd("/Volumes/Courses/ES218_A_SP/wokopa26/Vehicular accidents")
+
 Accidents_Original <- readRDS("farsp.RDS")
 
 alcohol <- read.csv("alcohol.csv")
@@ -336,7 +337,7 @@ theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 #### Graph 28: Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex
 ```{r Graph 28: Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex}
-ggplot(Names_Changed, aes(x = Accident_hour, y = Age, color = Injury_Severity_Basic)) +
+ggplot(Names_Changed %>% filter(!is.na(Sex)), aes(x = Accident_hour, y = Age, color = Injury_Severity_Basic)) +
   geom_point(alpha = 0.005) +
   facet_wrap(~ Sex) +
   labs(x = "Hour of day", y = "Age", color = "Injury severity", title = "Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex")+
@@ -466,15 +467,15 @@ ggplot(data = Names_Changed, aes(x = Accident_hour, y = Number_of_persons_involv
 
 ```
 
-#### Graph 41: Bubble plot for the number of accidents by state and injury severity
+#### Graph 41: Bubble plot for the number of accidents by state and injury severity - Not sure this is the best way to display this information, maybe have this for regions...
 ```{r Plot41, fig.cap="Bubble plot showing the number of accidents by state and injury severity, with bubble size indicating the number of accidents and color indicating injury severity."}
 state_injury_severity <- Names_Changed %>% count(state_name, Injury_severity)
 
 ggplot(data = state_injury_severity, aes(x = state_name, y = Injury_severity, size = n, color = Injury_severity)) +
-  geom_point(alpha = 0.6) +
+  geom_point(alpha = 0.5) +
   theme_minimal() +
   labs(x = "State", y = "Injury Severity") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
 #### Graph 42: Bar plot for the number of accidents by month and year
@@ -489,8 +490,8 @@ ggplot(data = monthly_accidents, aes(x = month(Month, label = TRUE), y = n, fill
 
 Graph 43: Ridgeline plot of the number of accidents by state and hour. RI and DC have some issues with early morning accidents!
 ``` {R Graph 43, fig.cap="Ridgeline plot of number of accidents by state and hour"}
-ggplot(Names_Changed, aes(x = Accident_hour, y = state_name, fill = state_name)) +
-    geom_density_ridges() +
+ggplot(Names_Changed, aes(x = Accident_hour, y = state_name)) +
+    ggridges::geom_density_ridges() +
     labs(title = "Ridgeline Plot: Accident Hour", x = "Hour", y = "State") +
     theme_ridges()
 ```
@@ -572,7 +573,7 @@ Names_Changed <- Names_Changed %>%
 
 
 
-# Maybe use MWStats for time series analysis
+### Moving window correlation between Number_of_persons_involved and Number_of_vehicles_involved
 ``` {r Moving Window Statistics}
 
 SingleWindow <- function(statistic, data) {
