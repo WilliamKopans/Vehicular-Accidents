@@ -123,7 +123,7 @@ Names_Changed <- Accidents_Original %>%
   mutate(Injury_severity = factor(Injury_severity, levels = c("No Apparent Injury", "Possible Injury", "Suspected Minor Injury", "Suspected Serious Injury", "Fatal Injury", "Injured, Severity Unknown", "Died Prior to Crash"), ordered = TRUE))
 
 
-# https://www.cdc.gov/nchs/hus/sources-definitions/geographic-region.htm#:~:text=Geographic%20region&text=Northeast%3A%20Includes%20Connecticut%2C%20Maine%2C,Ohio%2C%20South%20Dakota%2C%20and%20Wisconsin
+# https://www.cdc.gov/nchs/hus/sources-definitions/geographic-region.htm
 
 ```
 
@@ -229,6 +229,7 @@ south <- Names_Changed %>%
   summarize(rows_on_date = n()) %>% 
   filter(!is.na(rows_on_date)) %>% 
   mutate(rows_on_date = as.numeric(rows_on_date))
+southMW <- MovingWindow(south, "Datetime", "rows_on_date", "rows_on_date", 60, 15, "mean")
 
 west <- Names_Changed %>% 
   filter(region == "West") %>% 
@@ -236,6 +237,7 @@ west <- Names_Changed %>%
   summarize(rows_on_date = n()) %>% 
   filter(!is.na(rows_on_date)) %>% 
   mutate(rows_on_date = as.numeric(rows_on_date))
+westMW <- MovingWindow(west, "Datetime", "rows_on_date", "rows_on_date", 60, 15, "mean")
 
 northeast <- Names_Changed %>% 
   filter(region == "Northeast") %>% 
@@ -243,6 +245,7 @@ northeast <- Names_Changed %>%
   summarize(rows_on_date = n()) %>% 
   filter(!is.na(rows_on_date)) %>% 
   mutate(rows_on_date = as.numeric(rows_on_date))
+northeastMW <- MovingWindow(northeast, "Datetime", "rows_on_date", "rows_on_date", 60, 15, "mean")
 
 midwest <- Names_Changed %>%
   filter(region == "Midwest") %>% 
@@ -250,25 +253,25 @@ midwest <- Names_Changed %>%
   summarize(rows_on_date = n()) %>% 
   filter(!is.na(rows_on_date)) %>% 
   mutate(rows_on_date = as.numeric(rows_on_date))
+midwestMW <- MovingWindow(midwest, "Datetime", "rows_on_date", "rows_on_date", 60, 15, "mean")
 
 set.seed(123)
 master_df <- bind_rows(
-  south %>% mutate(region = "South") %>% slice_sample(n = 25000, replace = FALSE),
-  west %>% mutate(region = "West") %>% slice_sample(n = 25000, replace = FALSE),
-  northeast %>% mutate(region = "Northeast") %>% slice_sample(n = 25000, replace = FALSE),
-  midwest %>% mutate(region = "Midwest") %>% slice_sample(n = 25000, replace = FALSE) 
+  southMW %>% mutate(region = "South") %>% slice_sample(n = 25000, replace = FALSE),
+  westMW %>% mutate(region = "West") %>% slice_sample(n = 25000, replace = FALSE),
+  northeastMW %>% mutate(region = "Northeast") %>% slice_sample(n = 25000, replace = FALSE),
+  midwestMW %>% mutate(region = "Midwest") %>% slice_sample(n = 25000, replace = FALSE) 
 )
 
-ggplot(data = master_df, aes(x=Datetime,y=rows_on_date, col = region))+
+ggplot(data = master_df, aes(x=Midpoint,y=Value, col = region))+
   # geom_point(alpha = 1/4) +
   labs(
     title = "Mean Accidents (loess) Per Day in 60 Day Window With 15 Day Overlap",
     x = "Date",
-    y = "Mean Number of Accidents Per Day (Log Base 10)",
+    y = "Mean Number of Accidents Per Day",
     caption = "To reduce render time, sample sizes have been capped at 25,000 per region"
   ) +
-  scale_x_datetime(date_breaks = "1 year", date_labels = "%Y") +
-  scale_y_continuous(trans = "log10") +
+  scale_x_datetime(date_breaks = "2 years", date_labels = "%Y") +
   geom_smooth(method = "loess", aes(group = region), formula = "y ~ x", se = FALSE, span = 0.6) +
   theme(legend.position = "top",
         panel.grid.major = element_line(color = "gray", linetype = "dashed"),
@@ -687,7 +690,7 @@ library(ggplot2)
 teens <- Names_Changed %>% filter(Age >= 16 & Age <= 19)
 
 # Plot 1: Number of accidents by day of the week for teens
-P1Teen <- ggplot(teens, aes(x = Accident_weekday)) +
+P1Teen <- ggplot(teens %>% filter(!is.na(Alcohol_involvement)), aes(x = Accident_weekday, fill = Alcohol_involvement)) +
   geom_bar() +
   labs(title = "Number of accidents by day of the week for teens",
        x = "Day of the week",
