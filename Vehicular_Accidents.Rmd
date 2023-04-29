@@ -14,6 +14,7 @@ editor_options:
   chunk_output_type: console
 ---
 
+
 ```{r setup, include=FALSE}
 
 library(here)
@@ -102,27 +103,193 @@ Names_Changed <- Accidents_Original %>%
     Accident_weekday = factor(wday(Datetime, label = TRUE), levels = c("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")),
     Year = year(Datetime)
     ) %>%
-  filter(Age < 100) %>%
-  select(-State, -description.x, -description.y, -description.x.x, -description.y.y,-description)
+  filter(Age < 100) %>% 
+  select(-State, -description.x, -description.y, -description.x.x, -description.y.y,-description) %>% 
+  mutate(region = case_when(
+  state_name == "District of Columbia" ~ "South",
+  state.region[match(state_name, state.name)] == "North Central" ~ "Midwest",
+  TRUE ~ state.region[match(state_name, state.name)]
+))
 
+
+
+# print(unique(Names_Changed$region))
+# testdf <- Names_Changed %>% 
+#   distinct(State, .keep_all = TRUE) %>%  # keep only the first row with each state
+#   select(State, region)
+# https://www.cdc.gov/nchs/hus/sources-definitions/geographic-region.htm#:~:text=Geographic%20region&text=Northeast%3A%20Includes%20Connecticut%2C%20Maine%2C,Ohio%2C%20South%20Dakota%2C%20and%20Wisconsin
 
 ```
 
 # Temporal Analysis - Move 41 out
 
-### Graph 2: Number of Accidents per Month
-```{r Graph 2: Number of Accidents per Month}
-ggplot(Names_Changed %>% filter(!is.na(Datetime)), aes(x = month(Datetime, label = TRUE))) +
-geom_bar() +
-ggtitle("Number of Accidents per Month")
+
+### Moving window correlation between Number_of_persons_involved and Number_of_vehicles_involved
+``` {r Moving Window Statistics}
+
+SingleWindow <- function(statistic, data, colname = NULL) {
+  if (!is.data.frame(data)) {
+    stop("The input data must be a dataframe.")
+  }
+  switch(statistic,
+         "correlation" = list(Value = cor(data[,2], data[,3]), Midpoint = data[ceiling(nrow(data)/2), 1]),
+         "p value" = list(Value = cor.test(data[,2], data[,3])$p.value, Midpoint = data[ceiling(nrow(data)/2), 1]),
+         "OLS" = list(Value = summary(lm(data[,3] ~ data[,2]))$coefficients, Midpoint = data[ceiling(nrow(data)/2), 1]),
+         "mean" = list(Value = mean(data[[colname]]), Midpoint = data[ceiling(nrow(data)/2), 1]), # Second column only
+         stop("The input statistic must be one of 'correlation', 'p value', 'mean', or 'OLS'.")
+  )
+}
+
+
+MovingWindow <- function(data, posix_col, col1, col2, window_days, step_size, statistic) {
+  # Ensure the input POSIX column is in POSIXct format
+  data[[posix_col]] <- as.POSIXct(data[[posix_col]])
+  
+  # Calculate the minimum and maximum POSIX values in the dataset
+  min_date <- min(data[[posix_col]])
+  max_date <- max(data[[posix_col]])
+  
+  # Convert window_days and step_size to seconds
+  window_seconds <- window_days * 24 * 60 * 60
+  step_seconds <- step_size * 24 * 60 * 60
+  
+  # Set the starting date for the moving window
+  current_date <- min_date
+  
+  results = list()
+  # Iterate through the dataset using the moving window
+  while (current_date + window_seconds <= max_date) {
+    # Filter the data within the moving window
+    window_data <- data[data[[posix_col]] >= current_date & data[[posix_col]] <= current_date + window_seconds, c(posix_col, col1, col2)]
+    
+    # Select the posix_col, col1, and col2 using dplyr and set it equal to win_val
+    win_val <- window_data %>%
+      select(all_of(c(posix_col, col1, col2)))
+    
+    # Print the win_val dataframe for the current window
+    # print(colnames(win_val))
+    
+    
+    if (statistic != "mean") {
+      result <- SingleWindow(statistic, win_val)
+    }
+    if (statistic == "mean") {
+      result <- SingleWindow(statistic, win_val, colname = col1)
+    }
+    
+    results <- rbind(results, data.frame(DateTime = current_date,
+                                         Value = result$Value[1],
+                                         Midpoint = as.POSIXct(result$Midpoint$Datetime)))
+    
+    # Move the window by step_size
+    current_date <- current_date + step_seconds
+    
+  }
+  
+  # print(results)
+  ggplot(data = results, aes(x=Midpoint,Value))+
+    geom_point()
+  return(results)
+}
+
+# MovingWindow(Names_Changed, "Datetime", "Number_of_persons_involved", "Number_of_vehicles_involved", 30, 15, "correlation")
+
+DayMeanFind <- Names_Changed %>%
+  group_by(Datetime) %>%
+  summarize(rows_on_date = n()) %>%
+  filter(!is.na(rows_on_date))%>%
+  mutate(rows_on_date = as.numeric(rows_on_date))
+
+MW_Num_Per_Day <- MovingWindow(DayMeanFind, "Datetime", "rows_on_date", "rows_on_date", 60, 15, "mean")
+ggplot(data = MW_Num_Per_Day, aes(x=Midpoint,Value))+
+    geom_point() +
+  labs(
+    title = "Mean Accidents Per Day in 60 Day Window With 15 Day Overlap",
+    x = "Date",
+    y = "Mean Number of Accidents Per Day"
+  ) +
+  geom_smooth(method = "loess")
+
+
 ```
 
-### Graph 3: Accident Rates Over Time
-```{r Graph 3: Accident Rates Over Time}
-ggplot(Names_Changed, aes(x = Date, y = after_stat(count))) +
-geom_line(stat = "count") +
-labs(x = "Date", y = "Accidents", title = "Accident Rates Over Time")
+
+``` {r Region Analysis Daily}
+
+# filter by region and calculate daily mean
+south <- Names_Changed %>% 
+  filter(region == "South") %>% 
+  group_by(Datetime) %>% 
+  summarize(rows_on_date = n()) %>% 
+  filter(!is.na(rows_on_date)) %>% 
+  mutate(rows_on_date = as.numeric(rows_on_date))
+
+west <- Names_Changed %>% 
+  filter(region == "West") %>% 
+  group_by(Datetime) %>% 
+  summarize(rows_on_date = n()) %>% 
+  filter(!is.na(rows_on_date)) %>% 
+  mutate(rows_on_date = as.numeric(rows_on_date))
+
+northeast <- Names_Changed %>% 
+  filter(region == "Northeast") %>% 
+  group_by(Datetime) %>% 
+  summarize(rows_on_date = n()) %>% 
+  filter(!is.na(rows_on_date)) %>% 
+  mutate(rows_on_date = as.numeric(rows_on_date))
+
+midwest <- Names_Changed %>%
+  filter(region == "Midwest") %>% 
+  group_by(Datetime) %>% 
+  summarize(rows_on_date = n()) %>% 
+  filter(!is.na(rows_on_date)) %>% 
+  mutate(rows_on_date = as.numeric(rows_on_date))
+
+set.seed(123)
+master_df <- bind_rows(
+  south %>% mutate(region = "South") %>% slice_sample(n = 25000, replace = FALSE),
+  west %>% mutate(region = "West") %>% slice_sample(n = 25000, replace = FALSE),
+  northeast %>% mutate(region = "Northeast") %>% slice_sample(n = 25000, replace = FALSE),
+  midwest %>% mutate(region = "Midwest") %>% slice_sample(n = 25000, replace = FALSE) 
+)
+
+ggplot(data = master_df, aes(x=Datetime,y=rows_on_date, col = region))+
+  # geom_point(alpha = 1/4) +
+  labs(
+    title = "Mean Accidents (loess) Per Day in 60 Day Window With 15 Day Overlap",
+    x = "Date",
+    y = "Mean Number of Accidents Per Day (Log Base 10)",
+    caption = "To reduce render time, sample sizes have been capped at 25,000 per region"
+  ) +
+  scale_x_datetime(date_breaks = "1 year", date_labels = "%Y") +
+  scale_y_continuous(trans = "log10") +
+  geom_smooth(method = "loess", aes(group = region), formula = "y ~ x", se = FALSE, span = 0.6) +
+  theme(legend.position = "top",
+        panel.grid.major = element_line(color = "gray", linetype = "dashed"),
+        panel.grid.minor = element_blank()) +
+  guides(col = guide_legend(title.position = "top", nrow = 1))+
+  scale_color_discrete(name = "Regions:")
+
+
+
 ```
+
+
+### Graph 2: Number of Accidents per Month
+```{r Graph 2: Number of Accidents per Month}
+APM <- ggplot(Names_Changed %>% filter(!is.na(Datetime)), aes(x = month(Datetime, label = TRUE))) +
+  geom_bar() +
+  ggtitle("Number of Accidents per Month") + 
+  facet_wrap( ~ region)
+APMRel <- ggplot(Names_Changed %>% filter(!is.na(Datetime)), aes(x = month(Datetime, label = TRUE))) +
+   geom_bar() +
+   ggtitle("Number of Accidents per Month") + 
+   facet_wrap( ~ region, scales = "free_y")
+
+gridExtra::grid.arrange(APM, APMRel, ncol = 2)
+
+```
+
 
 ### Graph 4: Number of Accidents per Hour
 ```{r Graph 4: Number of Accidents per Hour}
@@ -631,20 +798,8 @@ ggplot(Names_Changed, aes(x = Age)) +
 
 
 
-# Next split into states or reigions like New England where hours of daylight will change and may cause more accidents 
-``` {r Split into states}
+# Test if reigions like New England where hours of daylight will change and may cause more accidents 
 
-Names_Changed <- Names_Changed %>%
-  mutate(region = case_when(
-    state_name %in% c("Maine", "New Hampshire", "Vermont", "Massachusetts", "Rhode Island", "Connecticut", "New York", "Pennsylvania", "New Jersey") ~ "Northeast",
-    state_name %in% c("Wisconsin", "Michigan", "Illinois", "Indiana", "Ohio", "Minnesota", "Iowa", "Missouri", "North Dakota", "South Dakota", "Nebraska", "Kansas") ~ "Midwest",
-    state_name %in% c("Delaware", "Maryland", "District of Columbia", "Virginia", "West Virginia", "North Carolina", "South Carolina", "Georgia", "Florida", "Kentucky", "Tennessee", "Mississippi", "Alabama", "Oklahoma", "Texas", "Arkansas", "Louisiana") ~ "South",
-    state_name %in% c("Montana", "Idaho", "Wyoming", "Colorado", "New Mexico", "Arizona", "Utah", "Nevada", "Washington", "Oregon", "California", "Alaska", "Hawaii") ~ "West",
-    TRUE ~ NA_character_
-  ))
-
-         
-```
 
 
 ### Graph 1: Number of Accidents per State
@@ -689,87 +844,6 @@ gridExtra::grid.arrange(P1Teen, P2Teen, ncol = 2, widths = c(3, 4))
 # What leads to fatal accidents? (Subset data or mutate a column identifying fatal and facet)
 
 
-
-
-### Moving window correlation between Number_of_persons_involved and Number_of_vehicles_involved
-``` {r Moving Window Statistics}
-
-SingleWindow <- function(statistic, data, colname = NULL) {
-  if (!is.data.frame(data)) {
-    stop("The input data must be a dataframe.")
-  }
-  switch(statistic,
-         "correlation" = list(Value = cor(data[,2], data[,3]), Midpoint = data[ceiling(nrow(data)/2), 1]),
-         "p value" = list(Value = cor.test(data[,2], data[,3])$p.value, Midpoint = data[ceiling(nrow(data)/2), 1]),
-         "OLS" = list(Value = summary(lm(data[,3] ~ data[,2]))$coefficients, Midpoint = data[ceiling(nrow(data)/2), 1]),
-         "mean" = list(Value = mean(data[[colname]]), Midpoint = data[ceiling(nrow(data)/2), 1]), # Second column only
-         stop("The input statistic must be one of 'correlation', 'p value', 'mean', or 'OLS'.")
-  )
-}
-
-
-MovingWindow <- function(data, posix_col, col1, col2, window_days, step_size, statistic) {
-  # Ensure the input POSIX column is in POSIXct format
-  data[[posix_col]] <- as.POSIXct(data[[posix_col]])
-  
-  # Calculate the minimum and maximum POSIX values in the dataset
-  min_date <- min(data[[posix_col]])
-  max_date <- max(data[[posix_col]])
-  
-  # Convert window_days and step_size to seconds
-  window_seconds <- window_days * 24 * 60 * 60
-  step_seconds <- step_size * 24 * 60 * 60
-  
-  # Set the starting date for the moving window
-  current_date <- min_date
-  
-  results = list()
-  # Iterate through the dataset using the moving window
-  while (current_date + window_seconds <= max_date) {
-    # Filter the data within the moving window
-    window_data <- data[data[[posix_col]] >= current_date & data[[posix_col]] <= current_date + window_seconds, c(posix_col, col1, col2)]
-    
-    # Select the posix_col, col1, and col2 using dplyr and set it equal to win_val
-    win_val <- window_data %>%
-      select(all_of(c(posix_col, col1, col2)))
-    
-    # Print the win_val dataframe for the current window
-    # print(colnames(win_val))
-    
-    
-    if (statistic != "mean") {
-      result <- SingleWindow(statistic, win_val)
-    }
-    if (statistic == "mean") {
-      result <- SingleWindow(statistic, win_val, colname = col1)
-    }
-    
-    results <- rbind(results, data.frame(DateTime = current_date,
-                                         Value = result$Value[1],
-                                         Midpoint = as.POSIXct(result$Midpoint$Datetime)))
-    
-    # Move the window by step_size
-    current_date <- current_date + step_seconds
-    
-  }
-  
-  # print(results)
-  ggplot(data = results, aes(x=Midpoint,Value))+
-    geom_point()
-  
-}
-
-MovingWindow(Names_Changed, "Datetime", "Number_of_persons_involved", "Number_of_vehicles_involved", 30, 15, "correlation")
-
-DayMeanFind <- Names_Changed %>%
-  group_by(Datetime) %>%
-  summarize(rows_on_date = n()) %>%
-  filter(!is.na(rows_on_date))%>%
-  mutate(rows_on_date = as.numeric(rows_on_date))
-
-MovingWindow(DayMeanFind, "Datetime", "rows_on_date", "rows_on_date", 30, 15, "mean")
-
-```
 
 
 
