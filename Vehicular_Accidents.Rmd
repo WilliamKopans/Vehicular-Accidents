@@ -22,24 +22,24 @@ knitr::opts_chunk$set(echo = TRUE,
                       cache.path = here::here(".cache"),
                       cache.size = 1500,
                       cache.lazy = TRUE,
-                      cache.rebuild = FALSE,
+                      cache.rebuild = TRUE,
                       cache.extra = list(png = here::here("images/"), pdf = here::here("documents/")))
 ```
 
-# Remember to remove SetWD and use "tabs" to group similar plots
+# Remember to remove SetWD and use "tabs" to group similar plots and have it auto install packages, suppress all warnings and messages
 ``` {r Import Dataset and libraries, message=FALSE}
 setwd("/Volumes/Courses/ES218_A_SP/wokopa26/Vehicular accidents/Apr26")
 library(ggplot2)
 library(tidyverse)
 library(lubridate)
 citation() 
-# citation("ggplot2")
-# citation("tidyverse")
-# citation("lubridate")
-# packageVersion("ggplot2")
-# packageVersion("tidyverse")
-# packageVersion("lubridate")
-knitr::write_bib(c("base", "bookdown", "rmarkdown"), "packages.bib")
+citation("ggplot2")
+citation("tidyverse")
+citation("lubridate")
+packageVersion("ggplot2")
+packageVersion("tidyverse")
+packageVersion("lubridate")
+set.seed(123)
 
 Accidents_Original <- readRDS("farsp.RDS")
 
@@ -263,7 +263,7 @@ midwest <- Names_Changed %>%
   mutate(rows_on_date = as.numeric(rows_on_date))
 midwestMW <- MovingWindow(midwest, "Datetime", "rows_on_date", "rows_on_date", 60, 15, "mean")
 
-set.seed(123)
+
 AllRegionsLong <- bind_rows(
   southMW %>% mutate(region = "South") %>% slice_sample(n = 25000, replace = FALSE),
   westMW %>% mutate(region = "West") %>% slice_sample(n = 25000, replace = FALSE),
@@ -292,8 +292,8 @@ rm("south", "west", "midwest","northeast","southMW", "westMW", "northeastMW", "m
 ```
 
 
-### Graph 2: Number of Accidents per Month
-```{r Graph 2: Number of Accidents per Month}
+### Graph 1: Number of Accidents per Month
+```{r Graph 1: Number of Accidents per Month}
 APM <- ggplot(Names_Changed %>% filter(!is.na(Datetime)), aes(x = month(Datetime, label = TRUE))) +
   geom_bar() +
   ggtitle("Number of Accidents per Month") + 
@@ -312,8 +312,8 @@ rm("APM","APMRel")
 ```
 
 
-### Graph 17: Density of Accidents by Day of Month and Time of Day
-```{r Graph 17: Density of Accidents by Day of Month and Time of Day}
+### Graph 2: Density of Accidents by Day of Month and Time of Day
+```{r Graph 2: Density of Accidents by Day of Month and Time of Day}
 ggplot(Names_Changed, aes(x = Accident_hour, y = Accident_day)) +
 geom_bin2d(bins = 20) +
 labs(x = "Hour of day", y = "Day of month", fill = "Number of accidents", title = "Density of Accidents by Day of Month and Time of Day") +
@@ -324,8 +324,8 @@ labs(x = "Hour of day", y = "Day of month", fill = "Number of accidents", title 
 
 # Demographic Analysis
 
-### Graph 5: Distribution of Age of Persons Involved in Accidents
-```{r Graph 5: Distribution of Age of Persons Involved in Accidents, message=FALSE}
+### Graph 3: Distribution of Age of Persons Involved in Accidents
+```{r Graph 3: Distribution of Age of Persons Involved in Accidents, message=FALSE}
 AgeSexOne <- ggplot(Names_Changed %>% filter(!is.na(Age)) %>% filter(!is.na(Sex)), aes(x = Age, fill = Sex)) +
   geom_bar(stat = "count", position = "stack") +
   labs(y = "Count", title = "Distribution of Age of Persons Involved in Accidents")
@@ -383,49 +383,31 @@ gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
 ```
 
 
-### Graph 6: Number of Accidents by Sex
-```{r Graph 6: Number of Accidents by Sex}
+### Graph 4: Number of Accidents by Sex
+```{r Graph 4: Number of Accidents by Sex}
 ggplot(Names_Changed %>% filter(!is.na(Sex)), aes(x = Sex, fill = Injury_Severity_Basic)) +
 geom_bar() +
 ggtitle("Number of Accidents by Sex")
 ```
 
-### Graph 22: Distribution of Age by Sex Involved in Accidents
-```{r Graph 22: Distribution of Age by Sex Involved in Accidents}
+### Graph 5: Distribution of Age by Sex Involved in Accidents
+```{r Graph 5: Distribution of Age by Sex Involved in Accidents}
 ggplot(Names_Changed, aes(x = Sex, y = Age)) +
 geom_boxplot() +
 labs(x = "Sex", y = "Age", title = "Distribution of Age by Sex Involved in Accidents")
 ```
 
-### Graph 34: Density plot of Age - Is this needed or redundant?
-```{r Plot34, fig.cap="Density plot showing the distribution of age of individuals involved in accidents."}
-ggplot(data = Names_Changed, aes(x = Age)) +
-  geom_density(fill = "lightblue", alpha = 0.6) +
-  theme_minimal() +
-  labs(x = "Age", y = "Density")
-
-```
-
-### Graph 36: Violin plot of Age by Sex
-```{r Plot36, fig.cap="Violin plot showing the distribution of age of individuals involved in accidents, separated by sex."}
-ggplot(data = Names_Changed, aes(x = Sex, y = Age, fill = Sex)) +
+### Graph 6: Violin plot of Age by Sex
+```{r Plot6, fig.cap="Violin plot showing the distribution of age of individuals involved in accidents, separated by sex."}
+ggplot(data = Names_Changed %>% filter(!is.na(Sex)), aes(x = Sex, y = Age)) +
   geom_violin() +
   theme_minimal() +
   labs(x = "Sex", y = "Age")+
   theme_minimal()
 ```
-### Graph 35: Age vs Number of Persons Involved by Sex
-```{r Plot35, fig.cap="Scatter plot showing the relationship between age and number of persons involved in accidents, separated by sex."}
-ggplot(data = Names_Changed, aes(x = Age, y = Number_of_persons_involved)) +
-  geom_hex() +
-  facet_wrap(~ Sex) +
-  theme_minimal() +
-  labs(x = "Age", y = "Number of Persons Involved")
 
-```
-
-### Graph 44: Boxplot of Age by Injury Severity
-``` {r Graph 44, fig.cap="Boxplot of Age by Injury Severity"}
+### Graph 8: Boxplot of Age by Injury Severity
+``` {r Graph 8, fig.cap="Boxplot of Age by Injury Severity"}
 ggplot(Names_Changed, aes(x = Injury_severity, y = Age)) +
   geom_boxplot() +
   labs(title = "Boxplot of Age by Injury Severity", x = "Injury Severity", y = "Age") +
@@ -433,19 +415,19 @@ ggplot(Names_Changed, aes(x = Injury_severity, y = Age)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
-### Graph 25: Distribution of Age by Manner of Collision
-```{r Graph 25: Distribution of Age by Manner of Collision}
+### Graph 9: Distribution of Age by Manner of Collision
+```{r Graph 9: Distribution of Age by Manner of Collision}
 ggplot(Names_Changed, aes(x = Manner_of_collision, y = Age)) +
 geom_boxplot() +
 labs(x = "Manner of collision", y = "Age", title = "Distribution of Age by Manner of Collision") +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
-### Graph 45: Normality: Q-Q plot of Age
-``` {r Graph 45, Normality: Q-Q plot of Age}
+### Graph 10: Normality: Q-Q plot of Age
+``` {r Graph 10, Normality: Q-Q plot of Age}
 ggplot(Names_Changed, aes(sample = Age)) +
   geom_qq() +
-  geom_qq_line(color = "red") +
+  geom_qq_line(color = "indianred3") +
   labs(title = "Q-Q Plot of Age", x = "Theoretical Quantiles", y = "Sample Quantiles") +
   theme_minimal()
 ```
@@ -453,8 +435,8 @@ ggplot(Names_Changed, aes(sample = Age)) +
 
 # Accident Characteristics
 
-### Graph 28: Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex - Make hex plot? Even possible to do so? Otherwise it is fine
-```{r Graph 28: Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex}
+### Graph 11: Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex - Make hex plot? Even possible to do so? Otherwise it is fine - Make box by hour
+```{r Graph 11: Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex}
 ggplot(Names_Changed %>% filter(!is.na(Sex)), aes(x = Accident_hour, y = Age, color = Injury_Severity_Basic)) +
   geom_point(alpha = 0.002) +
   facet_wrap(~ Vehicle_body_type) +
@@ -462,8 +444,8 @@ ggplot(Names_Changed %>% filter(!is.na(Sex)), aes(x = Accident_hour, y = Age, co
   guides(color = guide_legend(override.aes = list(alpha = 1)))
 ```
 
-### Graph 29: Visualizing the Frequency of Accidents Throughout the Year
-```{r Graph 29: Visualizing the Frequency of Accidents Throughout the Year, message=FALSE}
+### Graph 12: Visualizing the Frequency of Accidents Throughout the Year
+```{r Graph 12: Visualizing the Frequency of Accidents Throughout the Year, message=FALSE}
 accidents_per_day <- Names_Changed %>%
 mutate(DoY = yday(Datetime), Month = month(Datetime), Day = day(Datetime), Hour = hour(Datetime)) %>%
 group_by(Month, Day, Hour) %>%
@@ -478,29 +460,26 @@ theme_minimal()
 ```
 
 
-### Graph 12: Age Distribution by Injury Severity
-```{r Graph 12: Age Distribution by Injury Severity}
+### Graph 13: Age Distribution by Injury Severity
+```{r Graph 13: Age Distribution by Injury Severity}
 ggplot(Names_Changed, aes(x = Injury_severity, y = Age)) +
 geom_boxplot() +
 labs(x = "Injury Severity", y = "Age", title = "Age Distribution by Injury Severity") +
 theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
-### Graph 20: Relationship between Age and Time of Day When Accidents Occur - why 24 and 0 different? FIX THIS
-```{r Graph 20: Relationship between Age and Time of Day When Accidents Occur}
-# ggplot(Names_Changed, aes(x = Accident_hour, y = Age)) +
-# geom_point(alpha = 0.003) +
-# labs(x = "Hour of day", y = "Age", title = "Relationship between Age and Time of Day When Accidents Occur")
-ggplot(Names_Changed, aes(x = Accident_hour, y = Age)) +
-  geom_point(alpha = 0.003) +
+### Graph 14: Relationship between Age and Time of Day When Accidents Occur - why 24 and 0 different? FIX THIS
+```{r Graph 14: Relationship between Age and Time of Day When Accidents Occur}
+ggplot(Names_Changed, aes(y = Age)) +
+  geom_boxplot() +
   labs(x = "Hour of day", y = "Age", title = "Relationship between Age and Time of Day When Accidents Occur") +
-  scale_alpha(trans = "log", range = c(0.005, 0.5))+
-  theme_minimal()
+  theme_minimal()+
+  facet_wrap( ~ Accident_hour, nrow = 1)
 
 ```
 
-### Graph 21: Number of Accidents by Vehicle Body Type and Injury Severity
-```{r Graph 21: Number of Accidents by Vehicle Body Type and Injury Severity}
+### Graph 15: Number of Accidents by Vehicle Body Type and Injury Severity
+```{r Graph 15: Number of Accidents by Vehicle Body Type and Injury Severity}
 
 ggplot(Names_Changed, aes(y = Vehicle_body_type, fill = Injury_severity)) +
     geom_bar(position = "stack") +
@@ -527,12 +506,14 @@ ggplot(data = Names_Changed_Injury,
   guides(fill = guide_legend(override.aes = list(alpha = 1))) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))+
   theme_minimal()+
-  scale_fill_manual(values = c("indianred3","lightblue"))
+  scale_fill_manual(values = c("indianred3","lightblue"))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
 rm("Names_Changed_Injury")
 ```
 
-### Graph 23: Number of Accidents by Month and Injury Severity
-```{r Graph 23: Number of Accidents by Month and Injury Severity}
+### Graph 16: Number of Accidents by Month and Injury Severity
+```{r Graph 16: Number of Accidents by Month and Injury Severity}
 ggplot(Names_Changed %>% filter(!is.na(Injury_severity)), aes(x = Month_Name, fill = Injury_severity)) +
   geom_bar() +
   labs(x = "Month", y = "Number of accidents", title = "Number of Accidents by Month and Injury Severity") +
@@ -542,23 +523,23 @@ ggplot(Names_Changed %>% filter(!is.na(Injury_severity)), aes(x = Month_Name, fi
 ```
 
 
-### Graph 26: Heatmap of Accidents by Hour and Day of the Week
-```{r Graph 26: Heatmap of Accidents by Hour and Day of the Week, message=FALSE}
+### Graph 17: Heatmap of Accidents by Hour and Day of the Week
+```{r Graph 17: Heatmap of Accidents by Hour and Day of the Week, message=FALSE}
 accidents_by_hour_weekday <- Names_Changed %>%
 group_by(hour = hour(Datetime), weekday = wday(Datetime, label = TRUE)) %>%
 summarize(n = n())
 
 ggplot(accidents_by_hour_weekday, aes(x = hour, y = weekday, fill = n)) +
 geom_tile() +
-scale_fill_gradient(low = "#f7f7f7", high = "#e31a1c") +
+scale_fill_gradient(low = "#f7f7f7", high = "indianred3") +
 labs(x = "Hour of day", y = "Day of week", fill = "Number of accidents", title = "Heatmap of Accidents by Hour and Day of the Week")+
   theme_minimal()
 ```
 
 
-### Graph 30: Analyzing the Relationship Between Time and Accidents Across Different Months - I should find what state is most dangerous for July 4th and New Years, Also view just Feb to see what is going on with the line
+### Graph 18: Analyzing the Relationship Between Time and Accidents Across Different Months - I should find what state is most dangerous for July 4th and New Years, Also view just Feb to see what is going on with the line
 Note: February 29th removed to account for leap years 
-```{r Graph 30: Analyzing the Relationship Between Time and Accidents Across Different Months, message=FALSE}
+```{r Graph 18: Analyzing the Relationship Between Time and Accidents Across Different Months, message=FALSE}
 accidents_per_day <- Names_Changed %>%
 mutate(DoY = yday(Datetime), Month = month(Datetime), Day = day(Datetime), Hour = hour(Datetime)) %>%
 group_by(Month, Day, Hour) %>%
@@ -568,15 +549,15 @@ ungroup()
 ggplot(subset(accidents_per_day, !(Month == 2 & Day == 29)), aes(x = Day, y = Hour, fill = count - mean(count))) +
   geom_tile(width = 0.5) +
   scale_y_reverse() +
-  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+  scale_fill_gradient2(low = "lightblue", mid = "white", high = "indianred3", midpoint = 0) +
   facet_wrap(~ month(Month, label = TRUE)) +
   labs(x = "Day", y = "Time", fill = "Accidents", title = "Analyzing the Relationship Between Time and Accidents Across Different Months")+
   theme_minimal()
 
 ```
 
-### Graph 32: Time-based analysis - Seasonal decomposition plot
-```{r Plot32, fig.cap="Seasonal decomposition plot showing the trend of accidents over time, highlighting any seasonality in the data.", message=FALSE}
+### Graph 19: Time-based analysis - Seasonal decomposition plot
+```{r Plot 19, fig.cap="Seasonal decomposition plot showing the trend of accidents over time, highlighting any seasonality in the data.", message=FALSE}
 daily_accidents <- Names_Changed %>%
   group_by(Date) %>%
   summarise(accidents_per_day = n())
@@ -632,16 +613,9 @@ ggplot(decomposed_df %>% filter(Component == "Seasonal"), aes(x = Date, y = Valu
 
 
 
-### Graph 37: Hexbin plot of Age vs Number of Persons Involved
-```{r Plot37, fig.cap="Hexbin plot showing the density of points in a hexagonal grid, with the x-axis representing age and y-axis representing the number of persons involved in accidents."}
-ggplot(data = Names_Changed, aes(x = Age, y = Number_of_persons_involved)) +
-  geom_hex(bins = 30) +
-  theme_minimal() +
-  labs(x = "Age", y = "Number of Persons Involved")
-```
 
-### Graph 38: Density plot of Age distribution by Injury Severity
-```{r Plot38, fig.cap="Ridge plot showing the distribution of age of individuals involved in accidents, separated by injury severity."}
+### Graph 21: Density plot of Age distribution by Injury Severity
+```{r Plot21, fig.cap="Ridge plot showing the distribution of age of individuals involved in accidents, separated by injury severity."}
 
 ggplot(data = Names_Changed, aes(x = Age, fill = Injury_severity)) +
   geom_density(alpha = 0.6) +
@@ -666,7 +640,10 @@ teens <- Names_Changed %>% filter(Age >= 16 & Age <= 19)
 # Plot 1: Number of accidents by day of the week for teens
 P1Teen <- ggplot(teens %>% filter(!is.na(Alcohol_involvement)), aes(x = Accident_weekday, fill = Alcohol_involvement)) +
   geom_bar() +
-  labs(title = "Number of accidents by day of the week for teens",
+  labs(
+    # title = "Number of accidents by day of the week for teens",
+    title = element_blank(),
+    title = "[Plot 1] Number of accidents by day of the week for teens [Plot 2] Proportion of alcohol involvement by day of the week for teens",
        x = "Day of the week",
        y = "Number of accidents") +
   facet_wrap( ~ region)+
@@ -677,14 +654,17 @@ P1Teen <- ggplot(teens %>% filter(!is.na(Alcohol_involvement)), aes(x = Accident
 # Plot 2: Proportion of alcohol involvement by day of the week for teens
 P2Teen <- ggplot(teens %>% filter(!is.na(Alcohol_involvement)), aes(x = Accident_weekday , fill = Alcohol_involvement)) +
   geom_bar(position = "fill") +
-  labs(title = "Proportion of alcohol involvement by day of the week for teens",
+  labs(
+    # title = "Proportion of alcohol involvement by day of the week for teens",
+      title = "",
        x = "Day of the week",
        y = "Proportion of accidents") +
   facet_wrap( ~ region)+
-  theme(legend.position = "bottom", # Move legend to bottom
-        legend.title = element_blank()) + # Adjust size of legend key
+  theme(legend.position = "bottom", 
+        legend.title = element_blank()) + 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-  theme_minimal()
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 gridExtra::grid.arrange(P1Teen, P2Teen, ncol = 2, widths = c(3, 4))
 
@@ -746,22 +726,22 @@ DF_For_Shapiro <- Names_Changed %>%
 ``` {r Distribution Age}
 QQ_Age <- ggplot(data.frame(Names_Changed), aes(sample = Age)) +
   geom_qq() +
-  geom_qq_line(color = "red") +
+  geom_qq_line(color = "indianred3") +
   labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "QQ Plot for Age")
 
 QQ_Age_sqrt <- ggplot(Names_Changed, aes(sample = Age_sqrt)) +
   geom_qq() +
-  geom_qq_line(color = "red") +
+  geom_qq_line(color = "indianred3") +
   labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "QQ Plot for Square Root of Age")
 
 QQ_Age_reciprocal <- ggplot(Names_Changed, aes(sample = Age_reciprocal)) +
   geom_qq() +
-  geom_qq_line(color = "red") +
+  geom_qq_line(color = "indianred3") +
   labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "QQ Plot for Reciprocal of Age")
 
 QQ_Age_fourth_root <- ggplot(Names_Changed, aes(sample = Age_fourth_root)) +
   geom_qq() +
-  geom_qq_line(color = "red") +
+  geom_qq_line(color = "indianred3") +
   labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "QQ Plot for Fourth Root of Age")
 
 gridExtra::grid.arrange(QQ_Age, QQ_Age_sqrt, QQ_Age_reciprocal, QQ_Age_fourth_root, ncol = 2)
@@ -786,12 +766,12 @@ gridExtra::grid.arrange(Accident_hour_hist, Accident_hour_shifted, ncol = 2)
 
 Accident_hour_shiftedQQ <- ggplot(data.frame(Names_Changed), aes(sample = Accident_hour_shifted)) +
   geom_qq() +
-  geom_qq_line(color = "red") +
+  geom_qq_line(color = "indianred3") +
   labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "QQ Plot for Accident Hour")
 
 Accident_hour_QQ <- ggplot(data.frame(Names_Changed), aes(sample = Accident_hour)) +
   geom_qq() +
-  geom_qq_line(color = "red") +
+  geom_qq_line(color = "indianred3") +
   labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "QQ Plot for Accident Hour")
 
 gridExtra::grid.arrange(Accident_hour_QQ,Accident_hour_shiftedQQ, ncol = 2)
@@ -808,7 +788,7 @@ knitr::kable(df_hour_shifted, align = "c")
 ``` {r Distribution Day}
 ggplot(data.frame(Names_Changed), aes(sample = day_log)) +
   geom_qq() +
-  geom_qq_line(color = "red") +
+  geom_qq_line(color = "indianred3") +
   labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "QQ Plot for Accident Day (Log-Transformed)")
 
 shapiro_day <- shapiro.test(DF_For_Shapiro$day_log)
