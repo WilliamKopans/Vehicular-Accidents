@@ -22,9 +22,8 @@ knitr::opts_chunk$set(echo = TRUE,
                       cache.path = here::here(".cache"),
                       cache.size = 1500,
                       cache.lazy = TRUE,
-                      cache.rebuild = TRUE,
+                      cache.rebuild = FALSE,
                       cache.extra = list(png = here::here("images/"), pdf = here::here("documents/")))
-
 ```
 
 # Remember to remove SetWD and use "tabs" to group similar plots
@@ -33,7 +32,14 @@ setwd("/Volumes/Courses/ES218_A_SP/wokopa26/Vehicular accidents/Apr26")
 library(ggplot2)
 library(tidyverse)
 library(lubridate)
-library(ggridges)
+citation() 
+# citation("ggplot2")
+# citation("tidyverse")
+# citation("lubridate")
+# packageVersion("ggplot2")
+# packageVersion("tidyverse")
+# packageVersion("lubridate")
+knitr::write_bib(c("base", "bookdown", "rmarkdown"), "packages.bib")
 
 Accidents_Original <- readRDS("farsp.RDS")
 
@@ -691,30 +697,139 @@ gridExtra::grid.arrange(P1Teen, P2Teen, ncol = 2, widths = c(3, 4))
 # Maybe look at deaths of children and where the collisions take place, like are sideswipes more dangerous cause theyre in the back seat?
 
 
+``` {r Distribution Prep}
+# function for Box-Cox transformation
+BC <- function(x, p = 0) {
+  if(p == 0) {
+    z <- log(x)
+  } else {
+    z <- (x^p - 1)/p
+  }
+  return(z)
+}
+# function for Tukey transformation
+Tukey <- function(x, p = 0) {
+  if (p == 0) {
+    z <- log(x)
+  } else {
+    z <- (x^p - 1) / p
+  }
+  return(z)
+}
+# data preparation
+Names_Changed <- Names_Changed %>%
+  mutate(
+    Age_log = log(Age),
+    persons_sqrt = sqrt(Number_of_persons_involved),
+    vehicles_sqrt = sqrt(Number_of_vehicles_involved),
+    hour_log = log(Accident_hour + 1), # Added 1 to avoid log(0)
+    day_log = log(Accident_day),
+    group1_persons = ifelse(Sex == "female", persons_sqrt, NA),
+    group2_persons = ifelse(Sex == "male", persons_sqrt, NA),
+    group1_vehicles = ifelse(Sex == "female", vehicles_sqrt, NA),
+    group2_vehicles = ifelse(Sex == "male", vehicles_sqrt, NA),
+    persons_tukey = Tukey(Number_of_persons_involved, p = 0.5), # Tukey transformation
+    persons_boxcox = BC(Number_of_persons_involved, p = 0.5), # Box-Cox transformation
+    Age_sqrt = sqrt(Age),
+    Age_reciprocal = 1 / Age,
+    Age_fourth_root = Age^(1/4),
+    Accident_hour_shifted = ((Accident_hour - 5) %% 24) # Shifting to make QQ better:
+  ) 
 
-``` {r QQ Plots}
+DF_For_Shapiro <- Names_Changed %>% 
+  slice_sample(n = 5000, replace = FALSE)# Shapiro-Wilk test has a maximum limit of 5,000 observations
 
-ggplot(Names_Changed, aes(sample = Age)) +
+```
+
+
+
+``` {r Distribution Age}
+QQ_Age <- ggplot(data.frame(Names_Changed), aes(sample = Age)) +
   geom_qq() +
-  geom_qq_line(color = "red")
+  geom_qq_line(color = "red") +
+  labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "QQ Plot for Age")
 
-ggplot(Names_Changed, aes(sample = Number_of_persons_involved)) +
+QQ_Age_sqrt <- ggplot(Names_Changed, aes(sample = Age_sqrt)) +
   geom_qq() +
-  geom_qq_line(color = "red")
+  geom_qq_line(color = "red") +
+  labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "QQ Plot for Square Root of Age")
 
-ggplot(Names_Changed, aes(sample = Number_of_vehicles_involved)) +
+QQ_Age_reciprocal <- ggplot(Names_Changed, aes(sample = Age_reciprocal)) +
   geom_qq() +
-  geom_qq_line(color = "red")
+  geom_qq_line(color = "red") +
+  labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "QQ Plot for Reciprocal of Age")
 
-ggplot(Names_Changed, aes(sample = Accident_hour)) +
+QQ_Age_fourth_root <- ggplot(Names_Changed, aes(sample = Age_fourth_root)) +
   geom_qq() +
-  geom_qq_line(color = "red")
+  geom_qq_line(color = "red") +
+  labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "QQ Plot for Fourth Root of Age")
 
-ggplot(Names_Changed, aes(sample = Accident_day)) +
+gridExtra::grid.arrange(QQ_Age, QQ_Age_sqrt, QQ_Age_reciprocal, QQ_Age_fourth_root, ncol = 2)
+shapiro_age <- shapiro.test(DF_For_Shapiro$Age)
+shapiro_age <- as.data.frame(shapiro_age[c("statistic", "p.value")])
+colnames(shapiro_age) <- c("Statistic", "p-value")
+rownames(shapiro_age) <- NULL
+knitr::kable(shapiro_age, align = "c")
+
+```
+
+
+
+``` {r Distribution Hour}
+# Shifted variable
+Accident_hour_hist <- ggplot(Names_Changed, aes(x = Accident_hour)) +
+    geom_histogram(binwidth = 1)
+Accident_hour_shifted <- ggplot(Names_Changed, aes(x = Accident_hour_shifted)) +
+    geom_histogram(binwidth = 1) +
+    scale_x_continuous(breaks = seq(0, 24, 1), labels = c("19", "20", "21", "22", "23", "00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"))
+gridExtra::grid.arrange(Accident_hour_hist, Accident_hour_shifted, ncol = 2)
+
+Accident_hour_shiftedQQ <- ggplot(data.frame(Names_Changed), aes(sample = Accident_hour_shifted)) +
   geom_qq() +
-  geom_qq_line(color = "red")
+  geom_qq_line(color = "red") +
+  labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "QQ Plot for Accident Hour")
 
+Accident_hour_QQ <- ggplot(data.frame(Names_Changed), aes(sample = Accident_hour)) +
+  geom_qq() +
+  geom_qq_line(color = "red") +
+  labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "QQ Plot for Accident Hour")
+
+gridExtra::grid.arrange(Accident_hour_QQ,Accident_hour_shiftedQQ, ncol = 2)
+df_hour_shifted <- shapiro.test(DF_For_Shapiro$Accident_hour_shifted)
+df_hour_shifted <- as.data.frame(df_hour_shifted[c("statistic", "p.value")])
+colnames(df_hour_shifted) <- c("Statistic", "p-value")
+rownames(df_hour_shifted) <- NULL
+knitr::kable(df_hour_shifted, align = "c")
 
 
 ```
+
+
+``` {r Distribution Day}
+ggplot(data.frame(Names_Changed), aes(sample = day_log)) +
+  geom_qq() +
+  geom_qq_line(color = "red") +
+  labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "QQ Plot for Accident Day (Log-Transformed)")
+
+shapiro_day <- shapiro.test(DF_For_Shapiro$day_log)
+df_day <- as.data.frame(shapiro_day[c("statistic", "p.value")])
+colnames(df_day) <- c("Statistic", "p-value")
+rownames(df_day) <- NULL
+knitr::kable(df_day, align = "c")
+
+
+```
+
+
+
+
+
+
+
+
+# Look into modeling and looking for outliers like I did on the group HW
+
+
+
+
 
