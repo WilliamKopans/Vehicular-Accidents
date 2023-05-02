@@ -595,7 +595,7 @@ gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
 ```
 
 
-### Graph 11: Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex 
+## Graph 11: Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex 
 
 We can see that both non-fatal and fatal accidents tend to involve younger individuals over the course of the day. As such, the spread decreases throughout the day and especially small late at night. The spread of age is largest during the midday period. At night and during the late night periods, the median is near the 25th percentile for age which indicates that the majority of the data points are clustered towards the lower end of the distribution, with relatively few extreme values towards the upper end of the age distribution.
 
@@ -627,7 +627,7 @@ Over the course of the day more of the accidents involve younger individuals. Fo
 
 Generally, the spread of age is largest during the mid-day period as people of all ages are awake. The spread narrows significantly as we enter the late night where most accidents are involve younger individuals (usually around the age of 25). One notable exception to this are individuals who died prior to the crash which remains to be an older demographic with a larger spread throughout the day.
 
-### Morning Severity
+### Morning 
 ``` {r Graph 8.0, fig.cap="Boxplot of Age by Injury Severity Morning"}
 ggplot(Master_Dataframe %>% filter(time_period == "morning"), aes(x = Injury_severity, y = Age)) +
   geom_boxplot() +
@@ -636,7 +636,7 @@ ggplot(Master_Dataframe %>% filter(time_period == "morning"), aes(x = Injury_sev
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
-### Midday Severity
+### Midday 
 ``` {r Graph 8.1, fig.cap="Boxplot of Age by Injury Severity midday"}
 ggplot(Master_Dataframe%>% filter(time_period == "midday"), aes(x = Injury_severity, y = Age)) +
   geom_boxplot() +
@@ -645,7 +645,7 @@ ggplot(Master_Dataframe%>% filter(time_period == "midday"), aes(x = Injury_sever
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
-### Evening Severity
+### Evening 
 ``` {r Graph 8.2, fig.cap="Boxplot of Age by Injury Severity evening"}
 ggplot(Master_Dataframe%>% filter(time_period == "evening"), aes(x = Injury_severity, y = Age)) +
   geom_boxplot() +
@@ -654,7 +654,7 @@ ggplot(Master_Dataframe%>% filter(time_period == "evening"), aes(x = Injury_seve
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
-### Night Severity
+### Night 
 ``` {r Graph 8.3, fig.cap="Boxplot of Age by Injury Severity night"}
 ggplot(Master_Dataframe%>% filter(time_period == "night"), aes(x = Injury_severity, y = Age)) +
   geom_boxplot() +
@@ -663,7 +663,7 @@ ggplot(Master_Dataframe%>% filter(time_period == "night"), aes(x = Injury_severi
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
-### Late Night Severity
+### Late Night 
 ``` {r Graph 8.4, fig.cap="Boxplot of Age by Injury Severity Late Night"}
 ggplot(Master_Dataframe%>% filter(time_period == "late_night"), aes(x = Injury_severity, y = Age)) +
   geom_boxplot() +
@@ -800,6 +800,8 @@ gridExtra::grid.arrange(P1Teen, P2Teen, ncol = 2, widths = c(3, 4))
 
 
 ### Graph 19: Time-based analysis - Seasonal Analysis
+Below we will begin an exploration of the trends in the number of accidents.
+
 ```{r Seasonal Analysis 1}
 accidents_per_day <- Master_Dataframe %>%
   group_by(Date) %>%
@@ -874,36 +876,72 @@ ggtitle("Residuals from LOESS Smoothing")
 ```
 The non-parametric fit is a significant improvement compard to the linear or polynomial fits (as the loess is almost a straight line), suggesting the number of accidents has some non-linear and/or non-monotonic components. 
 
-``` {r Exploring seasonality}
+``` {r Exploring seasonality 1}
 accidents_per_day$MonthTwo <- month(accidents_per_day$Date, label=TRUE) 
 
-ggplot(accidents_per_day, aes(x = MonthTwo, y = res3)) + geom_boxplot() + labs(y = "Loess Residual")
+ggplot(accidents_per_day, aes(x = MonthTwo, y = res3)) + 
+  geom_boxplot() + 
+  labs(y = "Loess Residual")
+```
+We can see that the plot follows a yearly oscillation cycle which peaks during the summer time and is the lowest during the winter. Since driving conditions are highly regionional, it is difficult to glean to what extent the model is accurately acounting for changes in driving conditions or habits. Therefore, it is important to understand the regional factors before moving forward.
 
+#### Regional Analysis of first order residuals
+``` {r Added to explore seasonality further}
+Master_DataframePerDay <- Master_Dataframe %>%
+  group_by(region, Month_Name, Date) %>%
+  summarize(per_day = n(), .groups = 'drop')
+
+lo2 <- loess(per_day ~ as.numeric(Date), Master_DataframePerDay, span = 1/4)
+
+Master_DataframePerDay$res3 <- lo2$residuals
+
+ggplot(Master_DataframePerDay, aes(x = factor(Month_Name), y = res3)) +
+  geom_boxplot() +
+  facet_wrap(~ region) +
+  labs(title = "Box Plots of Residuals by Month and Region",
+       x = "Month",
+       y = "Residuals") +
+  theme_minimal()
+
+```
+
+There exist large discrepencies between how well the model fits each region. The western states fit the national model best, but other regions such as the south are not modeled well. We can also make out a noticable oscilation in the midwest which peaks near zero in August (meaning that the model fits the data well during that period and falls off on either end). 
+
+In the south the observed values are far greater than the predicted values based on the model. This is balanced out by the northeast, west, and to a lesser extent midwest regions which are understimated by the model.
+
+With these discrepencies in mind, we will continue our exploration without the seasonal component by subtracting the median residual to see if another pattern emerges. 
+
+``` {r Exploring seasonality 2}
 d3 <- accidents_per_day %>% 
   group_by(month(Date)) %>%
   mutate(Resid.lev = res3 - median(res3)) 
 
-ggplot(d3, aes(x = MonthTwo, y = Resid.lev)) + geom_boxplot()  
+ggplot(d3, aes(x = MonthTwo, y = Resid.lev)) + geom_boxplot()  + labs(x = "Month")
+```
+
+The spreads among months are generally consistant across months with slightly larger spreads in May, July, and September. We can also identify that the data in September ius skewed towards lower values than predicted.
+
+``` {r Exploring seasonality 3}
 
 d3$YearTwo <- year(accidents_per_day$Date) 
 
 ggplot(d3, aes(x = YearTwo, y = Resid.lev)) + geom_point(col = "grey", cex = .6)  + 
      stat_smooth(se = FALSE, method = "lm") + facet_wrap(~ MonthTwo, nrow = 1) +
-     theme(axis.text.x=element_text(angle=45, hjust = 1.5, vjust = 1.6,  size = 7))
+     theme(axis.text.x=element_text(angle=45, hjust = 1.5, vjust = 1.6,  size = 7)) + labs(x = "Year")
+```
+
+We can see that the residuals generally fit the data well from September until May, but during the summer there has been a decline in data values as compared to predicted values over time. This could suggest a gradual offset in the periodicy of the two decades of data. We will fit a loess model to see if the trends for each month are monotonic by adopting a robust loess which controls for possible outliers in the data.
+
+``` {r Exploring seasonality 4}
 
 ggplot(d3, aes(x = YearTwo, y = Resid.lev)) + geom_point(col = "grey", cex = .6)  + 
      stat_smooth(method = "loess", se = FALSE, 
                  method.args = list(family = "symmetric")) + 
      facet_wrap(~ MonthTwo, nrow = 1) +
-     theme(axis.text.x=element_text(angle=45, hjust = 1.5, vjust = 1.6,  size = 7))
+     theme(axis.text.x=element_text(angle=45, hjust = 1.5, vjust = 1.6,  size = 7))+ labs(x = "Year")
 
 ```
-
-# What leads to fatal accidents? (Subset data or mutate a column identifying fatal and facet)
-
-
-
-# Maybe look at deaths of children and where the collisions take place, like are sideswipes more dangerous cause theyre in the back seat?
+The trends do not appear to be monotonic (except for May, October, and to a lesser extent September) which suggests that the cyclical nature of accidents occuring is not systemic. 
 
 
 ``` {r Distribution Prep}
@@ -950,10 +988,7 @@ DF_For_Shapiro <- Master_Dataframe %>%
 
 ```
 
-
-
-
-knitr::knit_exit()
+The number of accidents by hour does not follow a normal distribution when starting at midnight, but shifting the data by six hours makes the data follow a bell curve much more closely. This is reflected both in the histogram and in the QQ plot which is initially curved then aligns almost perfectly with the 1 to 1 ratio once shifted. This suggests that there is a significant different in the patterns of accidents occuring at night vs during the day. We can attribute this to factors such as reduced visibility and fatigue.
 
 ``` {r Distribution Hour}
 # Shifted variable
@@ -985,8 +1020,9 @@ knitr::kable(df_hour_shifted, align = "c")
 ```
 
 
-
 ## Moving Window Analysis:
+Across all regions we can see that the number of accidents per day (mean in window) has been decreacing over the past two decades and has recently seen an uptick. The spread of mean values per window had a lot of variation in the late 20th century and became much more consistant around 2004 which has remained reasonably consistant with some windows being less uniform than in the 2004-2008 period. The recent uptick is notable, but remains signficantly lower than two decades ago.
+
 ``` {r Moving Window Statistics, message=FALSE}
 
 SingleWindow <- function(statistic, data, colname = NULL) {
@@ -1075,6 +1111,7 @@ ggplot(data = MW_Num_Per_Day, aes(x=Midpoint,Value))+
 rm("MW_Num_Per_Day","DayMeanFind")
 ```
 
+We can see that the northeastern states have consistantly been safer than the other regions and that the western states have been the greatest risk over the past twenty years. The south saw a noticable decrease in accidents between 1996 and 2011 which the other regions echoed but to a lesser extent. The midwest has not seen as significant an uptick recently as compared to the other regions and has nearly flatlined over the past six years.
 
 ``` {r Region Analysis Daily, message=FALSE}
 
@@ -1147,5 +1184,7 @@ rm("south", "west", "midwest","northeast","southMW", "westMW", "northeastMW", "m
 
 # I should find what state is most dangerous for July 4th and New Years, Also view just Feb to see what is going on with the line
 
+# What leads to fatal accidents? (Subset data or mutate a column identifying fatal and facet)
 
+# Maybe look at deaths of children and where the collisions take place, like are sideswipes more dangerous cause theyre in the back seat?
 
