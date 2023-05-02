@@ -1,5 +1,5 @@
 ---
-title: "Vehicular Accidents Restructuring"
+title: "Temporal Analysis of Vehicular Accidents"
 author: "William Kopans"
 date: "`r Sys.Date()`"
 output: 
@@ -28,7 +28,6 @@ knitr::opts_chunk$set(echo = TRUE,
                       cache.extra = list(png = here::here("images/"), pdf = here::here("documents/")))
 ```
 
-# Remember to remove SetWD and use "tabs" to group similar plots and have it auto install packages, suppress all warnings and messages
 ``` {r Import Dataset and libraries, message=FALSE}
 setwd("/Volumes/Courses/ES218_A_SP/wokopa26/Vehicular accidents/Apr26")
 library(ggplot2)
@@ -42,6 +41,14 @@ packageVersion("ggplot2")
 packageVersion("tidyverse")
 packageVersion("lubridate")
 set.seed(123)
+
+PackagesToCheck <- list( "ggplot2", "tidyverse", "lubridate")
+
+for (i in PackagesToCheck) {
+  if (i %in% rownames(installed.packages()) == FALSE) {
+    install.packages(i)
+  }
+}
 
 Accidents_Original <- readRDS("farsp.RDS")
 
@@ -148,6 +155,837 @@ rm("sex", "alcohol","state_code","man_coll","inj_sev","body_typ")
 # Temporal Analysis of Car Accident Data
 
 
+
+### Graph 16: Number of Accidents by Month and Injury Severity
+
+The majority of accidents occur in July with the fewest in February. Surprisingly, there is not as commensorate a drop in the number of fatalities in February as compared with July as one may expect. Although lower during February, the number of fatalities remains fairly constant across the year at around 55,000 deaths. There is a peak of suspected major and minor injuries in July, which is not reflected among the confirmed injuries. Fatal injuries, for instance, are elevated all summer. The number of accidents that do not result in any injury remains fairly steady across all months around 31,000 incidents. 
+
+```{r Graph 16: Number of Accidents by Month and Injury Severity}
+ggplot(Master_Dataframe %>% filter(!is.na(Injury_severity)), aes(x = Month_Name, fill = Injury_severity)) +
+  geom_bar() +
+  labs(x = "Month", y = "Number of accidents", title = "Number of Accidents by Month and Injury Severity") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  scale_fill_manual(values = c("lightblue", "orange", "mediumpurple1", "red1", "darkred", "tan1", "indianred3"))+
+  theme_minimal()
+```
+
+
+
+### Graph 1: Number of Accidents per Month
+We can see that the south accounts for the majority of accidents and the northeast region accounts for the least. When adjusting the scales to not be uniform we can see a normal distribution of accidents in the midwest, northeast, and west regions centered around August. The south remains at a similar level across months.
+
+```{r Graph 1: Number of Accidents per Month}
+APM <- ggplot(Master_Dataframe %>% filter(!is.na(Datetime)), aes(x = month(Datetime, label = TRUE))) +
+  geom_bar() +
+  ggtitle("Number of Accidents per Month") + 
+  facet_wrap( ~ region) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  labs(x = "Months", y = "Count")
+APMRel <- ggplot(Master_Dataframe %>% filter(!is.na(Datetime)), aes(x = month(Datetime, label = TRUE))) +
+   geom_bar() +
+   ggtitle("Number of Accidents per Month") + 
+   facet_wrap( ~ region, scales = "free_y") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  labs(x = "Months", y = "Count")
+
+gridExtra::grid.arrange(APM, APMRel, ncol = 2)
+rm("APM","APMRel")
+```
+
+
+### Graph 18: Analyzing the Relationship Between Time and Accidents Across Different Months 
+Note: February 29th removed to account for leap years 
+
+When graphing the number of accidents every day over the year, we can see that New Years and July 4th are dangerous times to be on the road. In particular, after 4pm on July 4th and just after midnight on January 1st are especially dangerous. In general, mornings are reasonably safe and accidents pick up around 9:00 am. Accidents then become much more frequent after 4:00 pm as people leave from work and kids get out of school.
+
+
+
+```{r Graph 18: Analyzing the Relationship Between Time and Accidents Across Different Months, message=FALSE}
+accidents_per_day <- Master_Dataframe %>%
+mutate(DoY = yday(Datetime), Month = month(Datetime), Day = day(Datetime), Hour = hour(Datetime)) %>%
+group_by(Month, Day, Hour) %>%
+summarize(count = n()) %>%
+ungroup()
+
+ggplot(subset(accidents_per_day, !(Month == 2 & Day == 29)), aes(x = Day, y = Hour, fill = count - mean(count))) +
+  geom_tile(width = 0.5) +
+  scale_y_reverse() +
+  scale_fill_gradient2(low = "dodgerblue4", mid = "white", high = "indianred3", midpoint = 0) +
+  facet_wrap(~ month(Month, label = TRUE)) +
+  labs(x = "Day", y = "Time", fill = "Accidents", title = "Analyzing the Relationship Between Time and Accidents Across Different Months")+
+  theme_minimal()
+
+```
+
+
+
+# Demographic Analysis Over The Day 
+
+## Graph 3: Distribution of Age of Persons Involved in Accidents {.tabset}
+
+The majority of accidents occur at night and the fewest occur during the evening. Starting in the evening, there are fewer people over the age of 60 getting in accidents which is likely a result of that group not being on the road as much as young and middle aged people.
+
+We can see that, in general, men are involved in more accidents across the board than women. This is especially apparent between the ages of 16 (when people generally get their drivers licences) and 75. Before the age of 16 both genders are involved in similar numbers of accidents as the individuals identified as not driving and are simply passengers.
+
+Although the percent of accidents where men are involved is elevated relative to female for the vast majority of ages, we can see that during the night/twilight hours the proportion of men to women increases among older people. The period of time when male and female are most balanced is during the mid-day period. 
+
+### Morning
+```{r Distribution of Age of Persons Involved in Accidents Morning, message=FALSE}
+SexAgeGraph <- Master_Dataframe %>% 
+  filter(!is.na(Sex) & !is.na(Age) & time_period == "morning") %>% 
+  group_by(Age, Sex) %>% 
+  summarise(Count = n()) %>% 
+  mutate(Percent = Count/sum(Count)*100)
+
+AgeSexOne <- ggplot(Master_Dataframe %>% filter(!is.na(Age) & !is.na(Sex) & time_period == "morning"),  aes(x = Age, fill = Sex)) +
+  geom_bar(stat = "count", position = "stack") +
+  labs(y = "Count", title = "Distribution of Age of Persons Involved in Accidents") + ylim(0,15000)
+
+AgeSexTwo <- ggplot(data = SexAgeGraph, aes(x = Age, y = Percent, fill = Sex)) +
+  geom_col(position = "stack") +
+  ggtitle("Percent of Each Sex Who Are In Accidents By Age")+
+  geom_abline(intercept = 50, slope = 0, alpha = 0.75, linetype = "dashed")
+
+gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
+```
+
+### Mid-Day
+```{r Distribution of Age of Persons Involved in Accidents Midday, message=FALSE}
+SexAgeGraph <- Master_Dataframe %>% 
+  filter(!is.na(Sex) & !is.na(Age) & time_period == "midday") %>% 
+  group_by(Age, Sex) %>% 
+  summarise(Count = n()) %>% 
+  mutate(Percent = Count/sum(Count)*100)
+
+AgeSexOne <- ggplot(Master_Dataframe %>% filter(!is.na(Age) & !is.na(Sex) & time_period == "midday"),  aes(x = Age, fill = Sex)) +
+  geom_bar(stat = "count", position = "stack") +
+  labs(y = "Count", title = "Distribution of Age of Persons Involved in Accidents")+ ylim(0,15000)
+
+AgeSexTwo <- ggplot(data = SexAgeGraph, aes(x = Age, y = Percent, fill = Sex)) +
+  geom_col(position = "stack") +
+  ggtitle("Percent of Each Sex Who Are In Accidents By Age")+
+  geom_abline(intercept = 50, slope = 0, alpha = 0.75, linetype = "dashed")
+
+gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
+```
+
+### Evening
+```{r Distribution of Age of Persons Involved in Accidents Evening, message=FALSE}
+SexAgeGraph <- Master_Dataframe %>% 
+  filter(!is.na(Sex) & !is.na(Age) & time_period == "evening") %>% 
+  group_by(Age, Sex) %>% 
+  summarise(Count = n()) %>% 
+  mutate(Percent = Count/sum(Count)*100)
+
+AgeSexOne <- ggplot(Master_Dataframe %>% filter(!is.na(Age) & !is.na(Sex) & time_period == "evening"),  aes(x = Age, fill = Sex)) +
+  geom_bar(stat = "count", position = "stack") +
+  labs(y = "Count", title = "Distribution of Age of Persons Involved in Accidents")+ ylim(0,15000)
+
+AgeSexTwo <- ggplot(data = SexAgeGraph, aes(x = Age, y = Percent, fill = Sex)) +
+  geom_col(position = "stack") +
+  ggtitle("Percent of Each Sex Who Are In Accidents By Age")+
+  geom_abline(intercept = 50, slope = 0, alpha = 0.75, linetype = "dashed")
+
+gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
+```
+
+### Night
+```{r Distribution of Age of Persons Involved in Accidents Evening Night, message=FALSE}
+SexAgeGraph <- Master_Dataframe %>% 
+  filter(!is.na(Sex) & !is.na(Age) & time_period == "night") %>% 
+  group_by(Age, Sex) %>% 
+  summarise(Count = n()) %>% 
+  mutate(Percent = Count/sum(Count)*100)
+
+AgeSexOne <- ggplot(Master_Dataframe %>% filter(!is.na(Age) & !is.na(Sex) & time_period == "night"),  aes(x = Age, fill = Sex)) +
+  geom_bar(stat = "count", position = "stack") +
+  labs(y = "Count", title = "Distribution of Age of Persons Involved in Accidents")+ ylim(0,15000)
+
+AgeSexTwo <- ggplot(data = SexAgeGraph, aes(x = Age, y = Percent, fill = Sex)) +
+  geom_col(position = "stack") +
+  ggtitle("Percent of Each Sex Who Are In Accidents By Age")+
+  geom_abline(intercept = 50, slope = 0, alpha = 0.75, linetype = "dashed")
+
+gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
+```
+
+### Late night
+```{r Distribution of Age of Persons Involved in Accidents Evening Late Night, message=FALSE}
+SexAgeGraph <- Master_Dataframe %>% 
+  filter(!is.na(Sex) & !is.na(Age) & time_period == "late_night") %>% 
+  group_by(Age, Sex) %>% 
+  summarise(Count = n()) %>% 
+  mutate(Percent = Count/sum(Count)*100)
+
+AgeSexOne <- ggplot(Master_Dataframe %>% filter(!is.na(Age) & !is.na(Sex) & time_period == "late_night"),  aes(x = Age, fill = Sex)) +
+  geom_bar(stat = "count", position = "stack") +
+  labs(y = "Count", title = "Distribution of Age of Persons Involved in Accidents")+ ylim(0,15000)
+
+AgeSexTwo <- ggplot(data = SexAgeGraph, aes(x = Age, y = Percent, fill = Sex)) +
+  geom_col(position = "stack") +
+  ggtitle("Percent of Each Sex Who Are In Accidents By Age")+
+  geom_abline(intercept = 50, slope = 0, alpha = 0.75, linetype = "dashed")
+
+gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
+```
+
+
+## Accidents Caused By Intoxication By Gender Over The Day {.tabset}
+
+We can see that the majority of accidents occur late at night which is followed by the mid-day and nighttime periods. 
+
+In the morning there are very few accidents involving alcohol. There is a noticable spike in accidents among 24 year old men getting into accidents in the morning, but more than 3/4 of the other accidents are from sober drivers. 
+
+During the middle of the day there is a less noticable peak around 25 and instead men between 25 and 60 are getting into accidents from alcohol. It is important to note again that this is of a very small number of accidents involving alcohol at this time.
+
+Progressing from the evening through the late night periods we can see a signficant uptick in accidents, in particular those involving alcohol. Men between the ages of 20 and 60 remain the most at risk of getting into an accident while intoxicated during these periods. Late at night, when the majority of accidents take place, we can see that more than half of all accidents are caused by drunk men. 
+
+Across the board, women are generally involved in very few accidents involving alcohol, but at night and very late into the night there is a decent sized segment of the female population getting into accidents due to alcohol. Most of these are from female drivers between the ages of 20 and 60, with a spike around 26. 
+
+### Morning
+``` {r Alcohol Morning}
+Master_DataframeMini <- Master_Dataframe %>% 
+  filter(time_period == "morning") 
+
+LongAlcSexAge <- Master_DataframeMini %>%
+  filter(!is.na(Alcohol_involvement)) %>%
+  filter(!is.na(Sex)) %>%
+  filter(!is.na(Age)) %>%
+  mutate(grp = paste0(Sex,Alcohol_involvement)) %>% 
+  mutate(grp = factor(paste0(Sex, Alcohol_involvement), 
+                      levels = c("femaleNo (Alcohol Not Involved)", 
+                                 "femaleYes (Alcohol Involved)",
+                                 "maleNo (Alcohol Not Involved)", 
+                                 "maleYes (Alcohol Involved)"
+                                 ))) %>% 
+  group_by(Age, grp) %>%
+  summarise(Accident_count = n()) %>% 
+  mutate(perc = Accident_count / sum(Accident_count) * 100) %>%
+  mutate(grp = fct_recode(grp,
+                          "Female, No Alcohol" = "femaleNo (Alcohol Not Involved)",
+                          "Female, Alcohol Involved" = "femaleYes (Alcohol Involved)",
+                          "Male, No Alcohol" = "maleNo (Alcohol Not Involved)",
+                          "Male, Alcohol Involved" = "maleYes (Alcohol Involved)"
+                          ))
+
+AgeSexAlcOne <- ggplot(Master_DataframeMini %>% filter(!is.na(Sex)) %>% filter(!is.na(Alcohol_involvement)) %>% filter(!is.na(Age)), aes(x = Age, fill =  paste0(Sex,Alcohol_involvement))) +
+  geom_bar(stat = "count", position = "stack") +
+  labs(fill = "Group")+
+  scale_fill_manual(labels = c("femaleNo (Alcohol Not Involved)" = "Female, No Alcohol",
+                               "femaleYes (Alcohol Involved)" = "Female, Alcohol Involved",
+                               "maleNo (Alcohol Not Involved)" = "Male, No Alcohol",
+                               "maleYes (Alcohol Involved)" = "Male, Alcohol Involved"),
+                    values = c("coral4", "coral1", "dodgerblue1", "dodgerblue4")) + ylim(0,8000)
+
+AgeSexAlcTwo <- ggplot(LongAlcSexAge, aes(x = Age, y = perc, fill = grp)) +
+  geom_col(position = "stack") +
+  scale_fill_manual(breaks = c("Female, No Alcohol", "Female, Alcohol Involved", "Male, No Alcohol", "Male, Alcohol Involved"),
+                    labels = c("Female, No Alcohol", "Female, Alcohol Involved", "Male, No Alcohol", "Male, Alcohol Involved"),
+                    values = c("coral4", "coral1", "dodgerblue1", "dodgerblue4")) +
+  labs(title = "Percent of Accidents by Age, Sex, and Intoxication Level",
+       x = "Age",
+       y = "Percent of Accidents",
+       fill = "Group") +
+  theme_minimal()
+rm("Master_DataframeMini")
+gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
+```
+
+### Mid-Day
+``` {r Alcohol MidDay}
+Master_DataframeMini <- Master_Dataframe %>% 
+  filter(time_period == "midday") 
+
+LongAlcSexAge <- Master_DataframeMini %>%
+  filter(!is.na(Alcohol_involvement)) %>%
+  filter(!is.na(Sex)) %>%
+  filter(!is.na(Age)) %>%
+  mutate(grp = paste0(Sex,Alcohol_involvement)) %>% 
+  mutate(grp = factor(paste0(Sex, Alcohol_involvement), 
+                      levels = c("femaleNo (Alcohol Not Involved)", 
+                                 "femaleYes (Alcohol Involved)",
+                                 "maleNo (Alcohol Not Involved)", 
+                                 "maleYes (Alcohol Involved)"
+                                 ))) %>% 
+  group_by(Age, grp) %>%
+  summarise(Accident_count = n()) %>% 
+  mutate(perc = Accident_count / sum(Accident_count) * 100) %>%
+  mutate(grp = fct_recode(grp,
+                          "Female, No Alcohol" = "femaleNo (Alcohol Not Involved)",
+                          "Female, Alcohol Involved" = "femaleYes (Alcohol Involved)",
+                          "Male, No Alcohol" = "maleNo (Alcohol Not Involved)",
+                          "Male, Alcohol Involved" = "maleYes (Alcohol Involved)"
+                          ))
+
+AgeSexAlcOne <- ggplot(Master_DataframeMini %>% filter(!is.na(Sex)) %>% filter(!is.na(Alcohol_involvement)) %>% filter(!is.na(Age)), aes(x = Age, fill =  paste0(Sex,Alcohol_involvement))) +
+  geom_bar(stat = "count", position = "stack") +
+  labs(fill = "Group")+
+  scale_fill_manual(labels = c("femaleNo (Alcohol Not Involved)" = "Female, No Alcohol",
+                               "femaleYes (Alcohol Involved)" = "Female, Alcohol Involved",
+                               "maleNo (Alcohol Not Involved)" = "Male, No Alcohol",
+                               "maleYes (Alcohol Involved)" = "Male, Alcohol Involved"),
+                    values = c("coral4", "coral1", "dodgerblue1", "dodgerblue4"))+ ylim(0,8000)
+
+AgeSexAlcTwo <- ggplot(LongAlcSexAge, aes(x = Age, y = perc, fill = grp)) +
+  geom_col(position = "stack") +
+  scale_fill_manual(breaks = c("Female, No Alcohol", "Female, Alcohol Involved", "Male, No Alcohol", "Male, Alcohol Involved"),
+                    labels = c("Female, No Alcohol", "Female, Alcohol Involved", "Male, No Alcohol", "Male, Alcohol Involved"),
+                    values = c("coral4", "coral1", "dodgerblue1", "dodgerblue4")) +
+  labs(title = "Percent of Accidents by Age, Sex, and Intoxication Level",
+       x = "Age",
+       y = "Percent of Accidents",
+       fill = "Group") +
+  theme_minimal()
+rm("Master_DataframeMini")
+gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
+
+```
+
+### evening
+``` {r Alcohol Evening}
+Master_DataframeMini <- Master_Dataframe %>% 
+  filter(time_period == "evening") 
+
+LongAlcSexAge <- Master_DataframeMini %>%
+  filter(!is.na(Alcohol_involvement)) %>%
+  filter(!is.na(Sex)) %>%
+  filter(!is.na(Age)) %>%
+  mutate(grp = paste0(Sex,Alcohol_involvement)) %>% 
+  mutate(grp = factor(paste0(Sex, Alcohol_involvement), 
+                      levels = c("femaleNo (Alcohol Not Involved)", 
+                                 "femaleYes (Alcohol Involved)",
+                                 "maleNo (Alcohol Not Involved)", 
+                                 "maleYes (Alcohol Involved)"
+                                 ))) %>% 
+  group_by(Age, grp) %>%
+  summarise(Accident_count = n()) %>% 
+  mutate(perc = Accident_count / sum(Accident_count) * 100) %>%
+  mutate(grp = fct_recode(grp,
+                          "Female, No Alcohol" = "femaleNo (Alcohol Not Involved)",
+                          "Female, Alcohol Involved" = "femaleYes (Alcohol Involved)",
+                          "Male, No Alcohol" = "maleNo (Alcohol Not Involved)",
+                          "Male, Alcohol Involved" = "maleYes (Alcohol Involved)"
+                          ))
+
+AgeSexAlcOne <- ggplot(Master_DataframeMini %>% filter(!is.na(Sex)) %>% filter(!is.na(Alcohol_involvement)) %>% filter(!is.na(Age)), aes(x = Age, fill =  paste0(Sex,Alcohol_involvement))) +
+  geom_bar(stat = "count", position = "stack") +
+  labs(fill = "Group")+
+  scale_fill_manual(labels = c("femaleNo (Alcohol Not Involved)" = "Female, No Alcohol",
+                               "femaleYes (Alcohol Involved)" = "Female, Alcohol Involved",
+                               "maleNo (Alcohol Not Involved)" = "Male, No Alcohol",
+                               "maleYes (Alcohol Involved)" = "Male, Alcohol Involved"),
+                    values = c("coral4", "coral1", "dodgerblue1", "dodgerblue4"))+ ylim(0,8000)
+
+AgeSexAlcTwo <- ggplot(LongAlcSexAge, aes(x = Age, y = perc, fill = grp)) +
+  geom_col(position = "stack") +
+  scale_fill_manual(breaks = c("Female, No Alcohol", "Female, Alcohol Involved", "Male, No Alcohol", "Male, Alcohol Involved"),
+                    labels = c("Female, No Alcohol", "Female, Alcohol Involved", "Male, No Alcohol", "Male, Alcohol Involved"),
+                    values = c("coral4", "coral1", "dodgerblue1", "dodgerblue4")) +
+  labs(title = "Percent of Accidents by Age, Sex, and Intoxication Level",
+       x = "Age",
+       y = "Percent of Accidents",
+       fill = "Group") +
+  theme_minimal()
+rm("Master_DataframeMini")
+gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
+
+
+```
+
+### night
+``` {r Alcohol Night}
+Master_DataframeMini <- Master_Dataframe %>% 
+  filter(time_period == "night") 
+
+LongAlcSexAge <- Master_DataframeMini %>%
+  filter(!is.na(Alcohol_involvement)) %>%
+  filter(!is.na(Sex)) %>%
+  filter(!is.na(Age)) %>%
+  mutate(grp = paste0(Sex,Alcohol_involvement)) %>% 
+  mutate(grp = factor(paste0(Sex, Alcohol_involvement), 
+                      levels = c("femaleNo (Alcohol Not Involved)", 
+                                 "femaleYes (Alcohol Involved)",
+                                 "maleNo (Alcohol Not Involved)", 
+                                 "maleYes (Alcohol Involved)"
+                                 ))) %>% 
+  group_by(Age, grp) %>%
+  summarise(Accident_count = n()) %>% 
+  mutate(perc = Accident_count / sum(Accident_count) * 100) %>%
+  mutate(grp = fct_recode(grp,
+                          "Female, No Alcohol" = "femaleNo (Alcohol Not Involved)",
+                          "Female, Alcohol Involved" = "femaleYes (Alcohol Involved)",
+                          "Male, No Alcohol" = "maleNo (Alcohol Not Involved)",
+                          "Male, Alcohol Involved" = "maleYes (Alcohol Involved)"
+                          ))
+
+AgeSexAlcOne <- ggplot(Master_DataframeMini %>% filter(!is.na(Sex)) %>% filter(!is.na(Alcohol_involvement)) %>% filter(!is.na(Age)), aes(x = Age, fill =  paste0(Sex,Alcohol_involvement))) +
+  geom_bar(stat = "count", position = "stack") +
+  labs(fill = "Group")+
+  scale_fill_manual(labels = c("femaleNo (Alcohol Not Involved)" = "Female, No Alcohol",
+                               "femaleYes (Alcohol Involved)" = "Female, Alcohol Involved",
+                               "maleNo (Alcohol Not Involved)" = "Male, No Alcohol",
+                               "maleYes (Alcohol Involved)" = "Male, Alcohol Involved"),
+                    values = c("coral4", "coral1", "dodgerblue1", "dodgerblue4"))+ ylim(0,8000)
+
+AgeSexAlcTwo <- ggplot(LongAlcSexAge, aes(x = Age, y = perc, fill = grp)) +
+  geom_col(position = "stack") +
+  scale_fill_manual(breaks = c("Female, No Alcohol", "Female, Alcohol Involved", "Male, No Alcohol", "Male, Alcohol Involved"),
+                    labels = c("Female, No Alcohol", "Female, Alcohol Involved", "Male, No Alcohol", "Male, Alcohol Involved"),
+                    values = c("coral4", "coral1", "dodgerblue1", "dodgerblue4")) +
+  labs(title = "Percent of Accidents by Age, Sex, and Intoxication Level",
+       x = "Age",
+       y = "Percent of Accidents",
+       fill = "Group") +
+  theme_minimal()
+rm("Master_DataframeMini")
+gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
+
+
+```
+
+### late_night
+``` {r Alcohol Late Night}
+Master_DataframeMini <- Master_Dataframe %>% 
+  filter(time_period == "late_night") 
+
+LongAlcSexAge <- Master_DataframeMini %>%
+  filter(!is.na(Alcohol_involvement)) %>%
+  filter(!is.na(Sex)) %>%
+  filter(!is.na(Age)) %>%
+  mutate(grp = paste0(Sex,Alcohol_involvement)) %>% 
+  mutate(grp = factor(paste0(Sex, Alcohol_involvement), 
+                      levels = c("femaleNo (Alcohol Not Involved)", 
+                                 "femaleYes (Alcohol Involved)",
+                                 "maleNo (Alcohol Not Involved)", 
+                                 "maleYes (Alcohol Involved)"
+                                 ))) %>% 
+  group_by(Age, grp) %>%
+  summarise(Accident_count = n()) %>% 
+  mutate(perc = Accident_count / sum(Accident_count) * 100) %>%
+  mutate(grp = fct_recode(grp,
+                          "Female, No Alcohol" = "femaleNo (Alcohol Not Involved)",
+                          "Female, Alcohol Involved" = "femaleYes (Alcohol Involved)",
+                          "Male, No Alcohol" = "maleNo (Alcohol Not Involved)",
+                          "Male, Alcohol Involved" = "maleYes (Alcohol Involved)"
+                          ))
+
+AgeSexAlcOne <- ggplot(Master_DataframeMini %>% filter(!is.na(Sex)) %>% filter(!is.na(Alcohol_involvement)) %>% filter(!is.na(Age)), aes(x = Age, fill =  paste0(Sex,Alcohol_involvement))) +
+  geom_bar(stat = "count", position = "stack") +
+  labs(fill = "Group")+
+  scale_fill_manual(labels = c("femaleNo (Alcohol Not Involved)" = "Female, No Alcohol",
+                               "femaleYes (Alcohol Involved)" = "Female, Alcohol Involved",
+                               "maleNo (Alcohol Not Involved)" = "Male, No Alcohol",
+                               "maleYes (Alcohol Involved)" = "Male, Alcohol Involved"),
+                    values = c("coral4", "coral1", "dodgerblue1", "dodgerblue4"))+ ylim(0,8000)
+
+AgeSexAlcTwo <- ggplot(LongAlcSexAge, aes(x = Age, y = perc, fill = grp)) +
+  geom_col(position = "stack") +
+  scale_fill_manual(breaks = c("Female, No Alcohol", "Female, Alcohol Involved", "Male, No Alcohol", "Male, Alcohol Involved"),
+                    labels = c("Female, No Alcohol", "Female, Alcohol Involved", "Male, No Alcohol", "Male, Alcohol Involved"),
+                    values = c("coral4", "coral1", "dodgerblue1", "dodgerblue4")) +
+  labs(title = "Percent of Accidents by Age, Sex, and Intoxication Level",
+       x = "Age",
+       y = "Percent of Accidents",
+       fill = "Group") +
+  theme_minimal()
+rm("Master_DataframeMini")
+gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
+
+
+```
+
+
+### Graph 11: Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex 
+
+We can see that both non-fatal and fatal accidents tend to involve younger individuals over the course of the day. As such, the spread decreases throughout the day and especially small late at night. The spread of age is largest during the midday period. At night and during the late night periods, the median is near the 25th percentile for age which indicates that the majority of the data points are clustered towards the lower end of the distribution, with relatively few extreme values towards the upper end of the age distribution.
+
+Across all times, the median age is higher for fatal accidents than non-fatal accidents. This makes sense since older individuals may have more health complications and more frail bodies overall. 
+
+```{r Graph 11: Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex}
+
+temp_df <- Master_Dataframe %>% 
+  filter(!is.na(Sex) & time_period != "unknown") %>%
+  mutate(time_period = fct_relevel(time_period, "morning", "midday", "evening", "night", "late_night")) %>%
+  mutate(time_period = fct_recode(time_period,
+                                   "Morning" = "morning",
+                                   "Midday" = "midday",
+                                   "Evening" = "evening",
+                                   "Night" = "night",
+                                   "Late Night" = "late_night"))
+
+ggplot(temp_df, aes(y = Age, x = Injury_Severity_Basic)) +
+  geom_boxplot() +
+  facet_wrap(~ time_period) +
+  labs(y = "Age", x = "Was The Accident Fatal", title = "Relationship between Age, Injury Severity, and Hour of Day") +
+  guides(color = guide_legend(override.aes = list(alpha = 1)))
+
+```
+
+
+## Boxplot of Age by Injury Severity Over Time {.tabset}
+Over the course of the day more of the accidents involve younger individuals. For instance, the age of accidents which do not reuslt in an injury decreases by about a decade from the morning to late in the night.
+
+Generally, the spread of age is largest during the mid-day period as people of all ages are awake. The spread narrows significantly as we enter the late night where most accidents are involve younger individuals (usually around the age of 25). One notable exception to this are individuals who died prior to the crash which remains to be an older demographic with a larger spread throughout the day.
+
+### Morning Severity
+``` {r Graph 8.0, fig.cap="Boxplot of Age by Injury Severity Morning"}
+ggplot(Master_Dataframe %>% filter(time_period == "morning"), aes(x = Injury_severity, y = Age)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Age by Injury Severity Morning", x = "Injury Severity", y = "Age") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+### Midday Severity
+``` {r Graph 8.1, fig.cap="Boxplot of Age by Injury Severity midday"}
+ggplot(Master_Dataframe%>% filter(time_period == "midday"), aes(x = Injury_severity, y = Age)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Age by Injury Severity Midday", x = "Injury Severity", y = "Age") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+### Evening Severity
+``` {r Graph 8.2, fig.cap="Boxplot of Age by Injury Severity evening"}
+ggplot(Master_Dataframe%>% filter(time_period == "evening"), aes(x = Injury_severity, y = Age)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Age by Injury Severity Evening", x = "Injury Severity", y = "Age") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+### Night Severity
+``` {r Graph 8.3, fig.cap="Boxplot of Age by Injury Severity night"}
+ggplot(Master_Dataframe%>% filter(time_period == "night"), aes(x = Injury_severity, y = Age)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Age by Injury Severity Night", x = "Injury Severity", y = "Age") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+### Late Night Severity
+``` {r Graph 8.4, fig.cap="Boxplot of Age by Injury Severity Late Night"}
+ggplot(Master_Dataframe%>% filter(time_period == "late_night"), aes(x = Injury_severity, y = Age)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Age by Injury Severity Late Night", x = "Injury Severity", y = "Age") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+
+## Graph 5: Distribution of Age by Sex Involved in Accidents
+
+During the morning, midday, and the evening the distribution of men and women is almost identical, with medians that are almost equal around 35 years old and a large number of accidents involving those around the age of 25 years old. Starting in the evening and continuing through the late night period we can see the median age lower to 25 years old, a decade drop from earlier in the day. We can also see a much more pronounced peak of accidents amoung young individuals around the age of 17 (presumably those who are new to driving, in partiuclar driving at night). Accordingly, the spread of ages decreases throughout the day. Throughout all time periods, men and women are mostly on par with each other in terms of the distribution of accidents amoung their groups.
+
+```{r Graph 5: Distribution of Age by Sex Involved in Accidents}
+
+temp_df <- Master_Dataframe %>% 
+  filter(!is.na(Sex) & time_period != "unknown") %>%
+  mutate(time_period = fct_relevel(time_period, "morning", "midday", "evening", "night", "late_night")) %>%
+  mutate(time_period = fct_recode(time_period,
+                                   "Morning" = "morning",
+                                   "Midday" = "midday",
+                                   "Evening" = "evening",
+                                   "Night" = "night",
+                                   "Late Night" = "late_night"))
+
+ggplot(temp_df %>% filter(!is.na(Sex) & !is.na(time_period)), aes(x = Sex, y = Age)) +
+    geom_boxplot(aes(fill = "indianred3")) +
+    geom_violin(aes(fill = "dodgerblue"), alpha = 0.5) +
+    labs(x = "Sex", y = "Age", title = "Distribution of Age by Sex Involved in Accidents by time") +
+    theme_minimal() +
+    guides(fill = "none") +
+    facet_wrap( ~ time_period)
+```
+
+
+
+# Accident Characteristics Over Time
+
+### Graph 15: Number of Accidents by Vehicle Body Type and Injury Severity
+
+We can see that across all time periods automobiles are involved in the most accidents. This is unsurprising since the majority of vehicles on the road are automobiles. Most of the serious/fatal injuries of those in automobiles take place during the midday period when nearly 15,000 accidents occur in which there is a serious or fatal injury. During the evening there are generally far fewer serious or fatal accidents which is commensorate with the generally fewer number of accidents at that time.
+
+Trucks are involved in a significant number of accidents during the morning and at midday, but many of them do not result in any injury. Vans and minivans also get into accidents in the mornig and midday, but many more of those result in more injuries or deaths than with trucks (as a proportion of accidents vans are involved in).
+
+```{r Graph 15: Number of Accidents by Vehicle Body Type and Injury Severity}
+
+temp_df <- Master_Dataframe %>% 
+  filter(time_period != "unknown") %>% 
+  mutate(time_period = fct_relevel(time_period, "morning", "midday", "evening", "night", "late_night")) %>%
+  mutate(time_period = fct_recode(time_period,
+                                   "Morning" = "morning",
+                                   "Midday" = "midday",
+                                   "Evening" = "evening",
+                                   "Night" = "night",
+                                   "Late Night" = "late_night"))
+
+ggplot(temp_df , aes(y = Vehicle_body_type, fill = Injury_severity)) +
+    geom_bar(position = "stack") +
+    labs(y = "Vehicle body type", x = "Number of accidents", title = "Number of Accidents by Vehicle Body Type and Injury Severity")+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    scale_fill_manual(values = c("lightblue", "orange", "mediumpurple1", "red1", "darkred", "tan1", "indianred3"))+
+    theme_minimal()+
+    theme(legend.position = "bottom", # Move legend to bottom
+          legend.title = element_blank())  +
+    facet_wrap( ~ time_period, nrow = 1)+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+
+
+### Graph 17: Heatmap of Accidents by Hour and Day of the Week
+
+We can see that very few accidents occur during the week before 5:00 am. There is a slight uptick in the number of accidents around 8:00 am as people commute to work, but this subsides until 3:00 pm when accidents pick up and continue to be high through 6:00 pm. Of the weekdays, Friday evenings and nights are the most dangerous, likely caused by people eager to get home for the weekend and those who decide to party later into the night. The elevated number of accidents on Friday continue into Saturday until 4:00am.
+
+On the weekends it is generally pretty safe to drive between 4:00am and 11:00 am. After noon accidents tend to pick up. Similar to Friday nights, Saturday nights are periods when many accidents take place and this continues through Sunday at 4:00 am. Sundays have a large number of accidents around 6:00 pm, but there are far fewer accidents late at night than on Fridays or Saturdays, presumably because people are getting ready for the work week.
+
+```{r Graph 17: Heatmap of Accidents by Hour and Day of the Week, message=FALSE}
+accidents_by_hour_weekday <- Master_Dataframe %>%
+group_by(hour = hour(Datetime), weekday = wday(Datetime, label = TRUE)) %>%
+summarize(n = n())
+
+ggplot(accidents_by_hour_weekday, aes(x = hour, y = weekday, fill = n)) +
+geom_tile() +
+scale_fill_gradient(low = "#f7f7f7", high = "indianred3") +
+labs(x = "Hour of day", y = "Day of week", fill = "Number of accidents", title = "Heatmap of Accidents by Hour and Day of the Week")+
+  theme_minimal()
+```
+
+### Teenage Accidents Involving Alcohol By Day and Region
+
+Earlier, we identified that the majority of accidents occur in the south. When looking at teenage drivers, the south remains to be a region where a lot of accidents take place. It is notable to point out that the delta between number of accidents on weekdays and weekends is very significant for southern states which is not as aparent (although still the case) in the other regions. The northeast remains a region with very few accidents.
+
+When we zoom in on which regions have the most accidents among teenagers under the influence, we can see that the south actually has fewer drunk teenage drivers relative to the other regions. The northeast and western states have the most teenage drivers getting into accidents that involve alcohol. 
+
+The weekends are a particularly risky time for teenage drivers to drive under the influence which is unsurprising since they are not in school. Generally, there are nearly double the number of accidents involving alcohol than those that don't of teens on weekends than on weekdays. Surprisingly, there is a lack of accidents involving alcohol among teens on Friday nights. Across all regions there is very little incrase in the numbers of accidents teens get into while drunk on Fridays as compared to other weekdays.  
+
+``` {r Teens}
+library(ggplot2)
+
+# Filter the data to only include accidents involving teens (ages 16-19)
+teens <- Master_Dataframe %>% filter(Age >= 16 & Age <= 19)
+
+# Plot 1: Number of accidents by day of the week for teens
+P1Teen <- ggplot(teens %>% filter(!is.na(Alcohol_involvement)), aes(x = Accident_weekday, fill = Alcohol_involvement)) +
+  geom_bar() +
+  labs(
+    # title = "Number of accidents by day of the week for teens",
+    title = "[Plot 1] Number of accidents by day of the week for teens [Plot 2] Proportion of alcohol involvement by day of the week for teens",
+       x = "Day of the week",
+       y = "Number of accidents") +
+  facet_wrap( ~ region)+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  guides(fill = "none")+
+  theme_minimal()
+
+# Plot 2: Proportion of alcohol involvement by day of the week for teens
+P2Teen <- ggplot(teens %>% filter(!is.na(Alcohol_involvement)), aes(x = Accident_weekday , fill = Alcohol_involvement)) +
+  geom_bar(position = "fill") +
+  labs(
+    # title = "Proportion of alcohol involvement by day of the week for teens",
+      title = "",
+       x = "Day of the week",
+       y = "Proportion of accidents") +
+  facet_wrap( ~ region)+
+  theme(legend.position = "bottom", 
+        legend.title = element_blank()) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+gridExtra::grid.arrange(P1Teen, P2Teen, ncol = 2, widths = c(3, 4))
+
+```
+
+
+### Graph 19: Time-based analysis - Seasonal Analysis
+```{r Seasonal Analysis 1}
+accidents_per_day <- Master_Dataframe %>%
+  group_by(Date) %>%
+  summarise(per_day = n())
+
+
+# Plot 1: Accidents per Day with Linear Regression
+ggplot(accidents_per_day, aes(x = Date, y = per_day)) + geom_line() + 
+  stat_smooth(method = "lm", se = FALSE, col = "red") +
+  ggtitle("Accidents per Day with Linear Regression")
+
+# Generate a model object from the regression fit
+M1 <- lm(per_day ~ as.numeric(Date), accidents_per_day) 
+accidents_per_day$res1 <- M1$residuals
+
+# Plot 2: Residuals from Linear Regression
+ggplot(accidents_per_day, aes(x = Date, y = res1)) + geom_point(alpha = 0.1) +
+  ggtitle("Residuals from Linear Regression")+
+  stat_smooth(method = "loess", se = FALSE)
+```
+There is a significant curve that has critical points around 2005 and 2012 with a linear regression fit suggesting that the linear model does not accurately reflect the dataset. Despite our attempt to control for the trend in the data, our simple linear model does not capture the trend well.
+
+```{r Seasonal Analysis 2}
+# Plot 3: Accidents per Day with Quadratic Regression
+ggplot(accidents_per_day, aes(x = Date, y = per_day)) + geom_line() + 
+  stat_smooth(method = "lm", formula = y ~ x + I(x^2), 
+              se = FALSE, col = "red") +
+  ggtitle("Accidents per Day with Quadratic Regression")
+
+M2 <- lm(per_day ~ as.numeric(Date) + I(as.numeric(Date)^2), data = accidents_per_day)
+accidents_per_day$res2 <- M2$residuals
+
+# Plot 4: Residuals from Quadratic Regression
+ggplot(accidents_per_day , aes(x = Date, y = res2)) + geom_point(alpha = 0.1) +
+  stat_smooth(method = "loess", se = FALSE) +
+  ggtitle("Residuals from Quadratic Regression")
+```
+Although an improvement over the first order polynomial model, there remains a slight curve that has critical points around 2005 and 2011 with a quadratic regression fit. This indicates that the trend is not linear and instead follows a polynomal trajectory.  
+
+
+```{r Seasonal Analysis 3}
+# Plot 5: Accidents per Day with Cubic Regression
+ggplot(accidents_per_day, aes(x = Date, y = per_day)) + geom_line() + 
+  stat_smooth(method = "lm", formula = y ~ x + I(x^2) + I(x^3), 
+              se = FALSE, col = "red") +
+  ggtitle("Accidents per Day with Cubic Regression")
+
+M2 <- lm(per_day ~ as.numeric(Date) + I(as.numeric(Date)^2) + I(as.numeric(Date)^3), data = accidents_per_day)
+
+accidents_per_day$res2 <- M2$residuals
+
+# Plot 6: Residuals from Cubic Regression
+ggplot(accidents_per_day , aes(x = Date, y = res2)) + geom_point(alpha = 0.1) +
+  stat_smooth(method = "loess", se = FALSE) +
+  ggtitle("Residuals from Cubic Regression")
+```
+The residuals still retains a "w" shape with a cubic regression fit. This can hamper our analysis of the oscillatory patterns in the data. We can try a non-parametric fit and see if it can capture the 2003 to 2010 hump. That being said, it is reasonably close to a straight line and could be used as a reasonable model if future investigation wishes to use a parametric fit.
+
+```{r Seasonal Analysis 4}
+# Plot 7: Accidents per Day with LOESS Smoothing
+ggplot(accidents_per_day, aes(x = Date, y = per_day)) + geom_line() + 
+  stat_smooth(method = "loess", span = 1/4, se = FALSE, col = "red") +
+  ggtitle("Accidents per Day with LOESS Smoothing")
+
+lo <- loess(per_day ~ as.numeric(Date), accidents_per_day, span=1/4)
+accidents_per_day$res3 <- lo$residuals
+
+# Plot 9: Residuals from LOESS Smoothing
+ggplot(accidents_per_day,  aes(x = Date, y = res3)) + geom_point(alpha = 0.1) +
+  stat_smooth(method = "loess", se = FALSE, span = 0.2) +
+ggtitle("Residuals from LOESS Smoothing")
+```
+The non-parametric fit is a significant improvement compard to the linear or polynomial fits (as the loess is almost a straight line), suggesting the number of accidents has some non-linear and/or non-monotonic components. 
+
+``` {r Exploring seasonality}
+accidents_per_day$MonthTwo <- month(accidents_per_day$Date, label=TRUE) 
+
+ggplot(accidents_per_day, aes(x = MonthTwo, y = res3)) + geom_boxplot() + labs(y = "Loess Residual")
+
+d3 <- accidents_per_day %>% 
+  group_by(month(Date)) %>%
+  mutate(Resid.lev = res3 - median(res3)) 
+
+ggplot(d3, aes(x = MonthTwo, y = Resid.lev)) + geom_boxplot()  
+
+d3$YearTwo <- year(accidents_per_day$Date) 
+
+ggplot(d3, aes(x = YearTwo, y = Resid.lev)) + geom_point(col = "grey", cex = .6)  + 
+     stat_smooth(se = FALSE, method = "lm") + facet_wrap(~ MonthTwo, nrow = 1) +
+     theme(axis.text.x=element_text(angle=45, hjust = 1.5, vjust = 1.6,  size = 7))
+
+ggplot(d3, aes(x = YearTwo, y = Resid.lev)) + geom_point(col = "grey", cex = .6)  + 
+     stat_smooth(method = "loess", se = FALSE, 
+                 method.args = list(family = "symmetric")) + 
+     facet_wrap(~ MonthTwo, nrow = 1) +
+     theme(axis.text.x=element_text(angle=45, hjust = 1.5, vjust = 1.6,  size = 7))
+
+```
+
+# What leads to fatal accidents? (Subset data or mutate a column identifying fatal and facet)
+
+
+
+# Maybe look at deaths of children and where the collisions take place, like are sideswipes more dangerous cause theyre in the back seat?
+
+
+``` {r Distribution Prep}
+# function for Box-Cox transformation
+BC <- function(x, p = 0) {
+  if(p == 0) {
+    z <- log(x)
+  } else {
+    z <- (x^p - 1)/p
+  }
+  return(z)
+}
+# function for Tukey transformation
+Tukey <- function(x, p = 0) {
+  if (p == 0) {
+    z <- log(x)
+  } else {
+    z <- (x^p - 1) / p
+  }
+  return(z)
+}
+# data preparation
+Master_Dataframe <- Master_Dataframe %>%
+  mutate(
+    Age_log = log(Age),
+    persons_sqrt = sqrt(Number_of_persons_involved),
+    vehicles_sqrt = sqrt(Number_of_vehicles_involved),
+    hour_log = log(Accident_hour + 1), # Added 1 to avoid log(0)
+    day_log = log(Accident_day),
+    group1_persons = ifelse(Sex == "female", persons_sqrt, NA),
+    group2_persons = ifelse(Sex == "male", persons_sqrt, NA),
+    group1_vehicles = ifelse(Sex == "female", vehicles_sqrt, NA),
+    group2_vehicles = ifelse(Sex == "male", vehicles_sqrt, NA),
+    persons_tukey = Tukey(Number_of_persons_involved, p = 0.5), # Tukey transformation
+    persons_boxcox = BC(Number_of_persons_involved, p = 0.5), # Box-Cox transformation
+    Age_sqrt = sqrt(Age),
+    Age_reciprocal = 1 / Age,
+    Age_fourth_root = Age^(1/4),
+    Accident_hour_shifted = ((Accident_hour - 5) %% 24) # Shifting to make QQ better:
+  ) 
+
+DF_For_Shapiro <- Master_Dataframe %>% 
+  slice_sample(n = 5000, replace = FALSE)# Shapiro-Wilk test has a maximum limit of 5,000 observations
+
+```
+
+
+
+
+knitr::knit_exit()
+
+``` {r Distribution Hour}
+# Shifted variable
+Accident_hour_hist <- ggplot(Master_Dataframe, aes(x = Accident_hour)) +
+    geom_histogram(binwidth = 1)
+Accident_hour_shifted <- ggplot(Master_Dataframe, aes(x = Accident_hour_shifted)) +
+    geom_histogram(binwidth = 1) +
+    scale_x_continuous(breaks = seq(0, 24, 1), labels = c("19", "20", "21", "22", "23", "00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"))
+gridExtra::grid.arrange(Accident_hour_hist, Accident_hour_shifted, ncol = 2)
+
+Accident_hour_shiftedQQ <- ggplot(data.frame(Master_Dataframe), aes(sample = Accident_hour_shifted)) +
+  geom_qq() +
+  geom_qq_line(color = "indianred3") +
+  labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "QQ Plot for Accident Hour")
+
+Accident_hour_QQ <- ggplot(data.frame(Master_Dataframe), aes(sample = Accident_hour)) +
+  geom_qq() +
+  geom_qq_line(color = "indianred3") +
+  labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "QQ Plot for Accident Hour")
+
+gridExtra::grid.arrange(Accident_hour_QQ,Accident_hour_shiftedQQ, ncol = 2)
+df_hour_shifted <- shapiro.test(DF_For_Shapiro$Accident_hour_shifted)
+df_hour_shifted <- as.data.frame(df_hour_shifted[c("statistic", "p.value")])
+colnames(df_hour_shifted) <- c("Statistic", "p-value")
+rownames(df_hour_shifted) <- NULL
+knitr::kable(df_hour_shifted, align = "c")
+
+
+```
+
+
+
 ## Moving Window Analysis:
 ``` {r Moving Window Statistics, message=FALSE}
 
@@ -238,17 +1076,6 @@ rm("MW_Num_Per_Day","DayMeanFind")
 ```
 
 
-### Graph 16: Number of Accidents by Month and Injury Severity
-```{r Graph 16: Number of Accidents by Month and Injury Severity}
-ggplot(Master_Dataframe %>% filter(!is.na(Injury_severity)), aes(x = Month_Name, fill = Injury_severity)) +
-  geom_bar() +
-  labs(x = "Month", y = "Number of accidents", title = "Number of Accidents by Month and Injury Severity") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  scale_fill_manual(values = c("lightblue", "orange", "mediumpurple1", "red1", "darkred", "tan1", "indianred3"))+
-  theme_minimal()
-```
-
-
 ``` {r Region Analysis Daily, message=FALSE}
 
 # filter by region and calculate daily mean
@@ -313,801 +1140,12 @@ rm("south", "west", "midwest","northeast","southMW", "westMW", "northeastMW", "m
 ```
 
 
-### Graph 1: Number of Accidents per Month
-```{r Graph 1: Number of Accidents per Month}
-APM <- ggplot(Master_Dataframe %>% filter(!is.na(Datetime)), aes(x = month(Datetime, label = TRUE))) +
-  geom_bar() +
-  ggtitle("Number of Accidents per Month") + 
-  facet_wrap( ~ region) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  labs(x = "Months", y = "Count")
-APMRel <- ggplot(Master_Dataframe %>% filter(!is.na(Datetime)), aes(x = month(Datetime, label = TRUE))) +
-   geom_bar() +
-   ggtitle("Number of Accidents per Month") + 
-   facet_wrap( ~ region, scales = "free_y") +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  labs(x = "Months", y = "Count")
-
-gridExtra::grid.arrange(APM, APMRel, ncol = 2)
-rm("APM","APMRel")
-```
-
-
-### Graph 18: Analyzing the Relationship Between Time and Accidents Across Different Months - I should find what state is most dangerous for July 4th and New Years, Also view just Feb to see what is going on with the line
-Note: February 29th removed to account for leap years 
-```{r Graph 18: Analyzing the Relationship Between Time and Accidents Across Different Months, message=FALSE}
-accidents_per_day <- Master_Dataframe %>%
-mutate(DoY = yday(Datetime), Month = month(Datetime), Day = day(Datetime), Hour = hour(Datetime)) %>%
-group_by(Month, Day, Hour) %>%
-summarize(count = n()) %>%
-ungroup()
-
-ggplot(subset(accidents_per_day, !(Month == 2 & Day == 29)), aes(x = Day, y = Hour, fill = count - mean(count))) +
-  geom_tile(width = 0.5) +
-  scale_y_reverse() +
-  scale_fill_gradient2(low = "dodgerblue4", mid = "white", high = "indianred3", midpoint = 0) +
-  facet_wrap(~ month(Month, label = TRUE)) +
-  labs(x = "Day", y = "Time", fill = "Accidents", title = "Analyzing the Relationship Between Time and Accidents Across Different Months")+
-  theme_minimal()
-
-```
-
-
-
-# Demographic Analysis Over The Day 
-
-## Graph 3: Distribution of Age of Persons Involved in Accidents {.tabset}
-
-### Morning
-```{r Distribution of Age of Persons Involved in Accidents Morning, message=FALSE}
-SexAgeGraph <- Master_Dataframe %>% 
-  filter(!is.na(Sex) & !is.na(Age) & time_period == "morning") %>% 
-  group_by(Age, Sex) %>% 
-  summarise(Count = n()) %>% 
-  mutate(Percent = Count/sum(Count)*100)
-
-AgeSexOne <- ggplot(Master_Dataframe %>% filter(!is.na(Age) & !is.na(Sex) & time_period == "morning"),  aes(x = Age, fill = Sex)) +
-  geom_bar(stat = "count", position = "stack") +
-  labs(y = "Count", title = "Distribution of Age of Persons Involved in Accidents")
-
-AgeSexTwo <- ggplot(data = SexAgeGraph, aes(x = Age, y = Percent, fill = Sex)) +
-  geom_col(position = "stack") +
-  ggtitle("Percent of Each Sex Who Are In Accidents By Age")+
-  geom_abline(intercept = 50, slope = 0, alpha = 0.75, linetype = "dashed")
-
-gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
-```
-
-### Mid-Day
-```{r Distribution of Age of Persons Involved in Accidents Midday, message=FALSE}
-SexAgeGraph <- Master_Dataframe %>% 
-  filter(!is.na(Sex) & !is.na(Age) & time_period == "midday") %>% 
-  group_by(Age, Sex) %>% 
-  summarise(Count = n()) %>% 
-  mutate(Percent = Count/sum(Count)*100)
-
-AgeSexOne <- ggplot(Master_Dataframe %>% filter(!is.na(Age) & !is.na(Sex) & time_period == "midday"),  aes(x = Age, fill = Sex)) +
-  geom_bar(stat = "count", position = "stack") +
-  labs(y = "Count", title = "Distribution of Age of Persons Involved in Accidents")
-
-AgeSexTwo <- ggplot(data = SexAgeGraph, aes(x = Age, y = Percent, fill = Sex)) +
-  geom_col(position = "stack") +
-  ggtitle("Percent of Each Sex Who Are In Accidents By Age")+
-  geom_abline(intercept = 50, slope = 0, alpha = 0.75, linetype = "dashed")
-
-gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
-```
-
-### Evening
-```{r Distribution of Age of Persons Involved in Accidents Evening, message=FALSE}
-SexAgeGraph <- Master_Dataframe %>% 
-  filter(!is.na(Sex) & !is.na(Age) & time_period == "evening") %>% 
-  group_by(Age, Sex) %>% 
-  summarise(Count = n()) %>% 
-  mutate(Percent = Count/sum(Count)*100)
-
-AgeSexOne <- ggplot(Master_Dataframe %>% filter(!is.na(Age) & !is.na(Sex) & time_period == "evening"),  aes(x = Age, fill = Sex)) +
-  geom_bar(stat = "count", position = "stack") +
-  labs(y = "Count", title = "Distribution of Age of Persons Involved in Accidents")
-
-AgeSexTwo <- ggplot(data = SexAgeGraph, aes(x = Age, y = Percent, fill = Sex)) +
-  geom_col(position = "stack") +
-  ggtitle("Percent of Each Sex Who Are In Accidents By Age")+
-  geom_abline(intercept = 50, slope = 0, alpha = 0.75, linetype = "dashed")
-
-gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
-```
-
-### Night
-```{r Distribution of Age of Persons Involved in Accidents Evening Night, message=FALSE}
-SexAgeGraph <- Master_Dataframe %>% 
-  filter(!is.na(Sex) & !is.na(Age) & time_period == "night") %>% 
-  group_by(Age, Sex) %>% 
-  summarise(Count = n()) %>% 
-  mutate(Percent = Count/sum(Count)*100)
-
-AgeSexOne <- ggplot(Master_Dataframe %>% filter(!is.na(Age) & !is.na(Sex) & time_period == "night"),  aes(x = Age, fill = Sex)) +
-  geom_bar(stat = "count", position = "stack") +
-  labs(y = "Count", title = "Distribution of Age of Persons Involved in Accidents")
-
-AgeSexTwo <- ggplot(data = SexAgeGraph, aes(x = Age, y = Percent, fill = Sex)) +
-  geom_col(position = "stack") +
-  ggtitle("Percent of Each Sex Who Are In Accidents By Age")+
-  geom_abline(intercept = 50, slope = 0, alpha = 0.75, linetype = "dashed")
-
-gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
-```
-
-### Late night
-```{r Distribution of Age of Persons Involved in Accidents Evening Late Night, message=FALSE}
-SexAgeGraph <- Master_Dataframe %>% 
-  filter(!is.na(Sex) & !is.na(Age) & time_period == "late_night") %>% 
-  group_by(Age, Sex) %>% 
-  summarise(Count = n()) %>% 
-  mutate(Percent = Count/sum(Count)*100)
-
-AgeSexOne <- ggplot(Master_Dataframe %>% filter(!is.na(Age) & !is.na(Sex) & time_period == "late_night"),  aes(x = Age, fill = Sex)) +
-  geom_bar(stat = "count", position = "stack") +
-  labs(y = "Count", title = "Distribution of Age of Persons Involved in Accidents")
-
-AgeSexTwo <- ggplot(data = SexAgeGraph, aes(x = Age, y = Percent, fill = Sex)) +
-  geom_col(position = "stack") +
-  ggtitle("Percent of Each Sex Who Are In Accidents By Age")+
-  geom_abline(intercept = 50, slope = 0, alpha = 0.75, linetype = "dashed")
-
-gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
-```
-
-
-## Accidents Caused By Intoxication By Gender Over The Day {.tabset}
-
-### Morning
-``` {r Alcohol Morning}
-Master_DataframeMini <- Master_Dataframe %>% 
-  filter(time_period == "morning") 
-
-LongAlcSexAge <- Master_DataframeMini %>%
-  filter(!is.na(Alcohol_involvement)) %>%
-  filter(!is.na(Sex)) %>%
-  filter(!is.na(Age)) %>%
-  mutate(grp = paste0(Sex,Alcohol_involvement)) %>% 
-  mutate(grp = factor(paste0(Sex, Alcohol_involvement), 
-                      levels = c("femaleNo (Alcohol Not Involved)", 
-                                 "femaleYes (Alcohol Involved)",
-                                 "maleNo (Alcohol Not Involved)", 
-                                 "maleYes (Alcohol Involved)"
-                                 ))) %>% 
-  group_by(Age, grp) %>%
-  summarise(Accident_count = n()) %>% 
-  mutate(perc = Accident_count / sum(Accident_count) * 100) %>%
-  mutate(grp = fct_recode(grp,
-                          "Female, No Alcohol" = "femaleNo (Alcohol Not Involved)",
-                          "Female, Alcohol Involved" = "femaleYes (Alcohol Involved)",
-                          "Male, No Alcohol" = "maleNo (Alcohol Not Involved)",
-                          "Male, Alcohol Involved" = "maleYes (Alcohol Involved)"
-                          ))
-
-AgeSexAlcOne <- ggplot(Master_DataframeMini %>% filter(!is.na(Sex)) %>% filter(!is.na(Alcohol_involvement)) %>% filter(!is.na(Age)), aes(x = Age, fill =  paste0(Sex,Alcohol_involvement))) +
-  geom_bar(stat = "count", position = "stack") +
-  labs(fill = "Group")+
-  scale_fill_manual(labels = c("femaleNo (Alcohol Not Involved)" = "Female, No Alcohol",
-                               "femaleYes (Alcohol Involved)" = "Female, Alcohol Involved",
-                               "maleNo (Alcohol Not Involved)" = "Male, No Alcohol",
-                               "maleYes (Alcohol Involved)" = "Male, Alcohol Involved"),
-                    values = c("coral4", "coral1", "dodgerblue1", "dodgerblue4"))
-
-AgeSexAlcTwo <- ggplot(LongAlcSexAge, aes(x = Age, y = perc, fill = grp)) +
-  geom_col(position = "stack") +
-  scale_fill_manual(breaks = c("Female, No Alcohol", "Female, Alcohol Involved", "Male, No Alcohol", "Male, Alcohol Involved"),
-                    labels = c("Female, No Alcohol", "Female, Alcohol Involved", "Male, No Alcohol", "Male, Alcohol Involved"),
-                    values = c("coral4", "coral1", "dodgerblue1", "dodgerblue4")) +
-  labs(title = "Percent of Accidents by Age, Sex, and Intoxication Level",
-       x = "Age",
-       y = "Percent of Accidents",
-       fill = "Group") +
-  theme_minimal()
-rm("Master_DataframeMini")
-gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
-```
-
-### Mid-Day
-``` {r Alcohol MidDay}
-Master_DataframeMini <- Master_Dataframe %>% 
-  filter(time_period == "midday") 
-
-LongAlcSexAge <- Master_DataframeMini %>%
-  filter(!is.na(Alcohol_involvement)) %>%
-  filter(!is.na(Sex)) %>%
-  filter(!is.na(Age)) %>%
-  mutate(grp = paste0(Sex,Alcohol_involvement)) %>% 
-  mutate(grp = factor(paste0(Sex, Alcohol_involvement), 
-                      levels = c("femaleNo (Alcohol Not Involved)", 
-                                 "femaleYes (Alcohol Involved)",
-                                 "maleNo (Alcohol Not Involved)", 
-                                 "maleYes (Alcohol Involved)"
-                                 ))) %>% 
-  group_by(Age, grp) %>%
-  summarise(Accident_count = n()) %>% 
-  mutate(perc = Accident_count / sum(Accident_count) * 100) %>%
-  mutate(grp = fct_recode(grp,
-                          "Female, No Alcohol" = "femaleNo (Alcohol Not Involved)",
-                          "Female, Alcohol Involved" = "femaleYes (Alcohol Involved)",
-                          "Male, No Alcohol" = "maleNo (Alcohol Not Involved)",
-                          "Male, Alcohol Involved" = "maleYes (Alcohol Involved)"
-                          ))
-
-AgeSexAlcOne <- ggplot(Master_DataframeMini %>% filter(!is.na(Sex)) %>% filter(!is.na(Alcohol_involvement)) %>% filter(!is.na(Age)), aes(x = Age, fill =  paste0(Sex,Alcohol_involvement))) +
-  geom_bar(stat = "count", position = "stack") +
-  labs(fill = "Group")+
-  scale_fill_manual(labels = c("femaleNo (Alcohol Not Involved)" = "Female, No Alcohol",
-                               "femaleYes (Alcohol Involved)" = "Female, Alcohol Involved",
-                               "maleNo (Alcohol Not Involved)" = "Male, No Alcohol",
-                               "maleYes (Alcohol Involved)" = "Male, Alcohol Involved"),
-                    values = c("coral4", "coral1", "dodgerblue1", "dodgerblue4"))
-
-AgeSexAlcTwo <- ggplot(LongAlcSexAge, aes(x = Age, y = perc, fill = grp)) +
-  geom_col(position = "stack") +
-  scale_fill_manual(breaks = c("Female, No Alcohol", "Female, Alcohol Involved", "Male, No Alcohol", "Male, Alcohol Involved"),
-                    labels = c("Female, No Alcohol", "Female, Alcohol Involved", "Male, No Alcohol", "Male, Alcohol Involved"),
-                    values = c("coral4", "coral1", "dodgerblue1", "dodgerblue4")) +
-  labs(title = "Percent of Accidents by Age, Sex, and Intoxication Level",
-       x = "Age",
-       y = "Percent of Accidents",
-       fill = "Group") +
-  theme_minimal()
-rm("Master_DataframeMini")
-gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
-
-```
-
-### evening
-``` {r Alcohol Evening}
-Master_DataframeMini <- Master_Dataframe %>% 
-  filter(time_period == "evening") 
-
-LongAlcSexAge <- Master_DataframeMini %>%
-  filter(!is.na(Alcohol_involvement)) %>%
-  filter(!is.na(Sex)) %>%
-  filter(!is.na(Age)) %>%
-  mutate(grp = paste0(Sex,Alcohol_involvement)) %>% 
-  mutate(grp = factor(paste0(Sex, Alcohol_involvement), 
-                      levels = c("femaleNo (Alcohol Not Involved)", 
-                                 "femaleYes (Alcohol Involved)",
-                                 "maleNo (Alcohol Not Involved)", 
-                                 "maleYes (Alcohol Involved)"
-                                 ))) %>% 
-  group_by(Age, grp) %>%
-  summarise(Accident_count = n()) %>% 
-  mutate(perc = Accident_count / sum(Accident_count) * 100) %>%
-  mutate(grp = fct_recode(grp,
-                          "Female, No Alcohol" = "femaleNo (Alcohol Not Involved)",
-                          "Female, Alcohol Involved" = "femaleYes (Alcohol Involved)",
-                          "Male, No Alcohol" = "maleNo (Alcohol Not Involved)",
-                          "Male, Alcohol Involved" = "maleYes (Alcohol Involved)"
-                          ))
-
-AgeSexAlcOne <- ggplot(Master_DataframeMini %>% filter(!is.na(Sex)) %>% filter(!is.na(Alcohol_involvement)) %>% filter(!is.na(Age)), aes(x = Age, fill =  paste0(Sex,Alcohol_involvement))) +
-  geom_bar(stat = "count", position = "stack") +
-  labs(fill = "Group")+
-  scale_fill_manual(labels = c("femaleNo (Alcohol Not Involved)" = "Female, No Alcohol",
-                               "femaleYes (Alcohol Involved)" = "Female, Alcohol Involved",
-                               "maleNo (Alcohol Not Involved)" = "Male, No Alcohol",
-                               "maleYes (Alcohol Involved)" = "Male, Alcohol Involved"),
-                    values = c("coral4", "coral1", "dodgerblue1", "dodgerblue4"))
-
-AgeSexAlcTwo <- ggplot(LongAlcSexAge, aes(x = Age, y = perc, fill = grp)) +
-  geom_col(position = "stack") +
-  scale_fill_manual(breaks = c("Female, No Alcohol", "Female, Alcohol Involved", "Male, No Alcohol", "Male, Alcohol Involved"),
-                    labels = c("Female, No Alcohol", "Female, Alcohol Involved", "Male, No Alcohol", "Male, Alcohol Involved"),
-                    values = c("coral4", "coral1", "dodgerblue1", "dodgerblue4")) +
-  labs(title = "Percent of Accidents by Age, Sex, and Intoxication Level",
-       x = "Age",
-       y = "Percent of Accidents",
-       fill = "Group") +
-  theme_minimal()
-rm("Master_DataframeMini")
-gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
-
-
-```
-
-### night
-``` {r Alcohol Night}
-Master_DataframeMini <- Master_Dataframe %>% 
-  filter(time_period == "night") 
-
-LongAlcSexAge <- Master_DataframeMini %>%
-  filter(!is.na(Alcohol_involvement)) %>%
-  filter(!is.na(Sex)) %>%
-  filter(!is.na(Age)) %>%
-  mutate(grp = paste0(Sex,Alcohol_involvement)) %>% 
-  mutate(grp = factor(paste0(Sex, Alcohol_involvement), 
-                      levels = c("femaleNo (Alcohol Not Involved)", 
-                                 "femaleYes (Alcohol Involved)",
-                                 "maleNo (Alcohol Not Involved)", 
-                                 "maleYes (Alcohol Involved)"
-                                 ))) %>% 
-  group_by(Age, grp) %>%
-  summarise(Accident_count = n()) %>% 
-  mutate(perc = Accident_count / sum(Accident_count) * 100) %>%
-  mutate(grp = fct_recode(grp,
-                          "Female, No Alcohol" = "femaleNo (Alcohol Not Involved)",
-                          "Female, Alcohol Involved" = "femaleYes (Alcohol Involved)",
-                          "Male, No Alcohol" = "maleNo (Alcohol Not Involved)",
-                          "Male, Alcohol Involved" = "maleYes (Alcohol Involved)"
-                          ))
-
-AgeSexAlcOne <- ggplot(Master_DataframeMini %>% filter(!is.na(Sex)) %>% filter(!is.na(Alcohol_involvement)) %>% filter(!is.na(Age)), aes(x = Age, fill =  paste0(Sex,Alcohol_involvement))) +
-  geom_bar(stat = "count", position = "stack") +
-  labs(fill = "Group")+
-  scale_fill_manual(labels = c("femaleNo (Alcohol Not Involved)" = "Female, No Alcohol",
-                               "femaleYes (Alcohol Involved)" = "Female, Alcohol Involved",
-                               "maleNo (Alcohol Not Involved)" = "Male, No Alcohol",
-                               "maleYes (Alcohol Involved)" = "Male, Alcohol Involved"),
-                    values = c("coral4", "coral1", "dodgerblue1", "dodgerblue4"))
-
-AgeSexAlcTwo <- ggplot(LongAlcSexAge, aes(x = Age, y = perc, fill = grp)) +
-  geom_col(position = "stack") +
-  scale_fill_manual(breaks = c("Female, No Alcohol", "Female, Alcohol Involved", "Male, No Alcohol", "Male, Alcohol Involved"),
-                    labels = c("Female, No Alcohol", "Female, Alcohol Involved", "Male, No Alcohol", "Male, Alcohol Involved"),
-                    values = c("coral4", "coral1", "dodgerblue1", "dodgerblue4")) +
-  labs(title = "Percent of Accidents by Age, Sex, and Intoxication Level",
-       x = "Age",
-       y = "Percent of Accidents",
-       fill = "Group") +
-  theme_minimal()
-rm("Master_DataframeMini")
-gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
-
-
-```
-
-### late_night
-``` {r Alcohol Late Night}
-Master_DataframeMini <- Master_Dataframe %>% 
-  filter(time_period == "late_night") 
-
-LongAlcSexAge <- Master_DataframeMini %>%
-  filter(!is.na(Alcohol_involvement)) %>%
-  filter(!is.na(Sex)) %>%
-  filter(!is.na(Age)) %>%
-  mutate(grp = paste0(Sex,Alcohol_involvement)) %>% 
-  mutate(grp = factor(paste0(Sex, Alcohol_involvement), 
-                      levels = c("femaleNo (Alcohol Not Involved)", 
-                                 "femaleYes (Alcohol Involved)",
-                                 "maleNo (Alcohol Not Involved)", 
-                                 "maleYes (Alcohol Involved)"
-                                 ))) %>% 
-  group_by(Age, grp) %>%
-  summarise(Accident_count = n()) %>% 
-  mutate(perc = Accident_count / sum(Accident_count) * 100) %>%
-  mutate(grp = fct_recode(grp,
-                          "Female, No Alcohol" = "femaleNo (Alcohol Not Involved)",
-                          "Female, Alcohol Involved" = "femaleYes (Alcohol Involved)",
-                          "Male, No Alcohol" = "maleNo (Alcohol Not Involved)",
-                          "Male, Alcohol Involved" = "maleYes (Alcohol Involved)"
-                          ))
-
-AgeSexAlcOne <- ggplot(Master_DataframeMini %>% filter(!is.na(Sex)) %>% filter(!is.na(Alcohol_involvement)) %>% filter(!is.na(Age)), aes(x = Age, fill =  paste0(Sex,Alcohol_involvement))) +
-  geom_bar(stat = "count", position = "stack") +
-  labs(fill = "Group")+
-  scale_fill_manual(labels = c("femaleNo (Alcohol Not Involved)" = "Female, No Alcohol",
-                               "femaleYes (Alcohol Involved)" = "Female, Alcohol Involved",
-                               "maleNo (Alcohol Not Involved)" = "Male, No Alcohol",
-                               "maleYes (Alcohol Involved)" = "Male, Alcohol Involved"),
-                    values = c("coral4", "coral1", "dodgerblue1", "dodgerblue4"))
-
-AgeSexAlcTwo <- ggplot(LongAlcSexAge, aes(x = Age, y = perc, fill = grp)) +
-  geom_col(position = "stack") +
-  scale_fill_manual(breaks = c("Female, No Alcohol", "Female, Alcohol Involved", "Male, No Alcohol", "Male, Alcohol Involved"),
-                    labels = c("Female, No Alcohol", "Female, Alcohol Involved", "Male, No Alcohol", "Male, Alcohol Involved"),
-                    values = c("coral4", "coral1", "dodgerblue1", "dodgerblue4")) +
-  labs(title = "Percent of Accidents by Age, Sex, and Intoxication Level",
-       x = "Age",
-       y = "Percent of Accidents",
-       fill = "Group") +
-  theme_minimal()
-rm("Master_DataframeMini")
-gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
-
-
-```
-
-
-## Graph 5: Distribution of Age by Sex Involved in Accidents
-```{r Graph 5: Distribution of Age by Sex Involved in Accidents}
-
-temp_df <- Master_Dataframe %>% 
-  filter(!is.na(Sex) & time_period != "unknown") %>%
-  mutate(time_period = fct_relevel(time_period, "morning", "midday", "evening", "night", "late_night")) %>%
-  mutate(time_period = fct_recode(time_period,
-                                   "Morning" = "morning",
-                                   "Midday" = "midday",
-                                   "Evening" = "evening",
-                                   "Night" = "night",
-                                   "Late Night" = "late_night"))
-
-ggplot(temp_df %>% filter(!is.na(Sex) & !is.na(time_period)), aes(x = Sex, y = Age)) +
-    geom_boxplot(aes(fill = "indianred3")) +
-    geom_violin(aes(fill = "dodgerblue"), alpha = 0.5) +
-    labs(x = "Sex", y = "Age", title = "Distribution of Age by Sex Involved in Accidents by time") +
-    theme_minimal() +
-    guides(fill = "none") +
-    facet_wrap( ~ time_period)
-```
-
-
-## Boxplot of Age by Injury Severity Over Time {.tabset}
-Over the course of the day more of the accidents involve younger individuals. For instance, the age of accidents which do not reuslt in an injury decreases by about a decade from the morning to late in the night.
-
-Generally, the spread of age is largest during the mid-day period as people of all ages are awake. The spread narrows significantly as we enter the late night where most accidents are involve younger individuals (usually around the age of 25). One notable exception to this are individuals who died prior to the crash which remains to be an older demographic with a larger spread throughout the day.
-
-### Morning Severity
-``` {r Graph 8.0, fig.cap="Boxplot of Age by Injury Severity Morning"}
-ggplot(Master_Dataframe %>% filter(time_period == "morning"), aes(x = Injury_severity, y = Age)) +
-  geom_boxplot() +
-  labs(title = "Boxplot of Age by Injury Severity Morning", x = "Injury Severity", y = "Age") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
-```
-
-### Midday Severity
-``` {r Graph 8.1, fig.cap="Boxplot of Age by Injury Severity midday"}
-ggplot(Master_Dataframe%>% filter(time_period == "midday"), aes(x = Injury_severity, y = Age)) +
-  geom_boxplot() +
-  labs(title = "Boxplot of Age by Injury Severity Midday", x = "Injury Severity", y = "Age") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
-```
-
-### Evening Severity
-``` {r Graph 8.2, fig.cap="Boxplot of Age by Injury Severity evening"}
-ggplot(Master_Dataframe%>% filter(time_period == "evening"), aes(x = Injury_severity, y = Age)) +
-  geom_boxplot() +
-  labs(title = "Boxplot of Age by Injury Severity Evening", x = "Injury Severity", y = "Age") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
-```
-
-### Night Severity
-``` {r Graph 8.3, fig.cap="Boxplot of Age by Injury Severity night"}
-ggplot(Master_Dataframe%>% filter(time_period == "night"), aes(x = Injury_severity, y = Age)) +
-  geom_boxplot() +
-  labs(title = "Boxplot of Age by Injury Severity Night", x = "Injury Severity", y = "Age") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
-```
-
-### Late Night Severity
-``` {r Graph 8.4, fig.cap="Boxplot of Age by Injury Severity Late Night"}
-ggplot(Master_Dataframe%>% filter(time_period == "late_night"), aes(x = Injury_severity, y = Age)) +
-  geom_boxplot() +
-  labs(title = "Boxplot of Age by Injury Severity Late Night", x = "Injury Severity", y = "Age") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
-```
-
-
-# Accident Characteristics
-
-### Graph 11: Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex 
-```{r Graph 11: Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex}
-
-temp_df <- Master_Dataframe %>% 
-  filter(!is.na(Sex) & time_period != "unknown") %>%
-  mutate(time_period = fct_relevel(time_period, "morning", "midday", "evening", "night", "late_night")) %>%
-  mutate(time_period = fct_recode(time_period,
-                                   "Morning" = "morning",
-                                   "Midday" = "midday",
-                                   "Evening" = "evening",
-                                   "Night" = "night",
-                                   "Late Night" = "late_night"))
-
-ggplot(temp_df, aes(y = Age, x = Injury_Severity_Basic)) +
-  geom_boxplot() +
-  facet_wrap(~ time_period) +
-  labs(x = "Age", y = "Injury severity", title = "Relationship between Age, Injury Severity, and Hour of Day") +
-  guides(color = guide_legend(override.aes = list(alpha = 1)))
-
-```
-
-
-
-### Graph 15: Number of Accidents by Vehicle Body Type and Injury Severity
-```{r Graph 15: Number of Accidents by Vehicle Body Type and Injury Severity}
-
-temp_df <- Master_Dataframe %>% 
-  filter(time_period != "unknown") %>% 
-  mutate(time_period = fct_relevel(time_period, "morning", "midday", "evening", "night", "late_night")) %>%
-  mutate(time_period = fct_recode(time_period,
-                                   "Morning" = "morning",
-                                   "Midday" = "midday",
-                                   "Evening" = "evening",
-                                   "Night" = "night",
-                                   "Late Night" = "late_night"))
-
-ggplot(temp_df , aes(y = Vehicle_body_type, fill = Injury_severity)) +
-    geom_bar(position = "stack") +
-    labs(y = "Vehicle body type", x = "Number of accidents", title = "Number of Accidents by Vehicle Body Type and Injury Severity")+
-    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-    scale_fill_manual(values = c("lightblue", "orange", "mediumpurple1", "red1", "darkred", "tan1", "indianred3"))+
-    theme_minimal()+
-    theme(legend.position = "bottom", # Move legend to bottom
-          legend.title = element_blank())  +
-    facet_wrap( ~ time_period, nrow = 1)+
-    theme(axis.text.x = element_text(angle = 90, hjust = 1))
-```
-
-
-
-### Graph 14: Relationship between Age and Time of Day When Accidents Occur
-```{r Graph 14: Relationship between Age and Time of Day When Accidents Occur}
-
-temp_df <- Master_Dataframe %>% 
-  filter(time_period != "unknown") %>% 
-  mutate(time_period = fct_relevel(time_period, "morning", "midday", "evening", "night", "late_night")) %>%
-  mutate(time_period = fct_recode(time_period,
-                                   "Morning" = "morning",
-                                   "Midday" = "midday",
-                                   "Evening" = "evening",
-                                   "Night" = "night",
-                                   "Late Night" = "late_night"))
-
-ggplot(temp_df, aes(y = Age)) +
-  geom_boxplot() +
-  labs(x = "Hour of day", y = "Age", title = "Relationship between Age and Time of Day When Accidents Occur") +
-  theme_minimal() +
-  facet_wrap( ~ time_period, nrow = 1)
-
-```
-
-
-### Graph 17: Heatmap of Accidents by Hour and Day of the Week
-```{r Graph 17: Heatmap of Accidents by Hour and Day of the Week, message=FALSE}
-accidents_by_hour_weekday <- Master_Dataframe %>%
-group_by(hour = hour(Datetime), weekday = wday(Datetime, label = TRUE)) %>%
-summarize(n = n())
-
-ggplot(accidents_by_hour_weekday, aes(x = hour, y = weekday, fill = n)) +
-geom_tile() +
-scale_fill_gradient(low = "#f7f7f7", high = "indianred3") +
-labs(x = "Hour of day", y = "Day of week", fill = "Number of accidents", title = "Heatmap of Accidents by Hour and Day of the Week")+
-  theme_minimal()
-```
-
-# Do teens have more accidents on weekends? (Subset data or mutate a column identifying weekends and facet)
-``` {r Teens}
-library(ggplot2)
-
-# Filter the data to only include accidents involving teens (ages 16-19)
-teens <- Master_Dataframe %>% filter(Age >= 16 & Age <= 19)
-
-# Plot 1: Number of accidents by day of the week for teens
-P1Teen <- ggplot(teens %>% filter(!is.na(Alcohol_involvement)), aes(x = Accident_weekday, fill = Alcohol_involvement)) +
-  geom_bar() +
-  labs(
-    # title = "Number of accidents by day of the week for teens",
-    title = "[Plot 1] Number of accidents by day of the week for teens [Plot 2] Proportion of alcohol involvement by day of the week for teens",
-       x = "Day of the week",
-       y = "Number of accidents") +
-  facet_wrap( ~ region)+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-  guides(fill = FALSE)+
-  theme_minimal()
-
-# Plot 2: Proportion of alcohol involvement by day of the week for teens
-P2Teen <- ggplot(teens %>% filter(!is.na(Alcohol_involvement)), aes(x = Accident_weekday , fill = Alcohol_involvement)) +
-  geom_bar(position = "fill") +
-  labs(
-    # title = "Proportion of alcohol involvement by day of the week for teens",
-      title = "",
-       x = "Day of the week",
-       y = "Proportion of accidents") +
-  facet_wrap( ~ region)+
-  theme(legend.position = "bottom", 
-        legend.title = element_blank()) + 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
-gridExtra::grid.arrange(P1Teen, P2Teen, ncol = 2, widths = c(3, 4))
-
-```
-
-
-### Graph 19: Time-based analysis - Seasonal Analysis
-```{r Seasonal Analysis 1}
-accidents_per_day <- Master_Dataframe %>%
-  group_by(Date) %>%
-  summarise(per_day = n())
-
-
-# Plot 1: Accidents per Day with Linear Regression
-ggplot(accidents_per_day, aes(x = Date, y = per_day)) + geom_line() + 
-  stat_smooth(method = "lm", se = FALSE, col = "red") +
-  ggtitle("Accidents per Day with Linear Regression")
-
-# Generate a model object from the regression fit
-M1 <- lm(per_day ~ as.numeric(Date), accidents_per_day) 
-accidents_per_day$res1 <- M1$residuals
-
-# Plot 2: Residuals from Linear Regression
-ggplot(accidents_per_day, aes(x = Date, y = res1)) + geom_point() +
-  ggtitle("Residuals from Linear Regression")+
-  stat_smooth(method = "loess", se = FALSE)
-```
-There is a significant curve that has critical points around 2005 and 2012 with a linear regression fit.
-
-```{r Seasonal Analysis 2}
-# Plot 3: Accidents per Day with Quadratic Regression
-ggplot(accidents_per_day, aes(x = Date, y = per_day)) + geom_line() + 
-  stat_smooth(method = "lm", formula = y ~ x + I(x^2), 
-              se = FALSE, col = "red") +
-  ggtitle("Accidents per Day with Quadratic Regression")
-
-M2 <- lm(per_day ~ as.numeric(Date) + I(as.numeric(Date)^2), data = accidents_per_day)
-accidents_per_day$res2 <- M2$residuals
-
-# Plot 4: Residuals from Quadratic Regression
-ggplot(accidents_per_day , aes(x = Date, y = res2)) + geom_point() +
-  stat_smooth(method = "loess", se = FALSE) +
-  ggtitle("Residuals from Quadratic Regression")
-```
-There is a slight curve that has critical points around 2005 and 2011 with a quadratic regression fit.
-
-```{r Seasonal Analysis 3}
-# Plot 5: Accidents per Day with Cubic Regression
-ggplot(accidents_per_day, aes(x = Date, y = per_day)) + geom_line() + 
-  stat_smooth(method = "lm", formula = y ~ x + I(x^2) + I(x^3), 
-              se = FALSE, col = "red") +
-  ggtitle("Accidents per Day with Cubic Regression")
-
-M2 <- lm(per_day ~ as.numeric(Date) + I(as.numeric(Date)^2) + I(as.numeric(Date)^3), data = accidents_per_day)
-
-accidents_per_day$res2 <- M2$residuals
-
-# Plot 6: Residuals from Cubic Regression
-ggplot(accidents_per_day , aes(x = Date, y = res2)) + geom_point() +
-  stat_smooth(method = "loess", se = FALSE) +
-  ggtitle("Residuals from Cubic Regression")
-```
-The residuals still retains a "w" shape with a cubic regression fit. This can hamper our analysis of the oscillatory patterns in the data. We can try a non-parametric fit and see if it can capture the 2003 to 2010 hump. That being said, it is reasonably close to a straight line and could be used as a reasonable model if future investigation wishes to use a parametric fit.
-
-```{r Seasonal Analysis 4}
-# Plot 7: Accidents per Day with LOESS Smoothing
-ggplot(accidents_per_day, aes(x = Date, y = per_day)) + geom_line() + 
-  stat_smooth(method = "loess", span = 1/4, se = FALSE, col = "red") +
-  ggtitle("Accidents per Day with LOESS Smoothing")
-
-lo <- loess(per_day ~ as.numeric(Date), accidents_per_day, span=1/4)
-accidents_per_day$res3 <- lo$residuals
-
-# Plot 9: Residuals from LOESS Smoothing
-ggplot(accidents_per_day,  aes(x = Date, y = res3)) + geom_point() +
-  stat_smooth(method = "loess", se = FALSE, span = 0.2) +
-ggtitle("Residuals from LOESS Smoothing")
-```
-The non-parametric fit appears to be a significant improvement (as the loess is almost a straight line) over the linear, quadratic, and cubic regressions, suggesting the number of accidents has some non-linear and/or non-monotonic components. 
-
-``` {r Exploring seasonality}
-accidents_per_day$MonthTwo <- month(accidents_per_day$Date, label=TRUE) 
-
-ggplot(accidents_per_day, aes(x = MonthTwo, y = res3)) + geom_boxplot() + labs(y = "Loess Residual")
-
-d3 <- accidents_per_day %>% 
-  group_by(month(Date)) %>%
-  mutate(Resid.lev = res3 - median(res3)) 
-
-ggplot(d3, aes(x = MonthTwo, y = Resid.lev)) + geom_boxplot()  
-
-d3$YearTwo <- year(accidents_per_day$Date) 
-
-ggplot(d3, aes(x = YearTwo, y = Resid.lev)) + geom_point(col = "grey", cex = .6)  + 
-     stat_smooth(se = FALSE, method = "lm") + facet_wrap(~ MonthTwo, nrow = 1) +
-     theme(axis.text.x=element_text(angle=45, hjust = 1.5, vjust = 1.6,  size = 7))
-
-ggplot(d3, aes(x = YearTwo, y = Resid.lev)) + geom_point(col = "grey", cex = .6)  + 
-     stat_smooth(method = "loess", se = FALSE, 
-                 method.args = list(family = "symmetric")) + 
-     facet_wrap(~ MonthTwo, nrow = 1) +
-     theme(axis.text.x=element_text(angle=45, hjust = 1.5, vjust = 1.6,  size = 7))
-
-```
-
-# What leads to fatal accidents? (Subset data or mutate a column identifying fatal and facet)
-
-
-
-# Maybe look at deaths of children and where the collisions take place, like are sideswipes more dangerous cause theyre in the back seat?
-
-
-``` {r Distribution Prep}
-# function for Box-Cox transformation
-BC <- function(x, p = 0) {
-  if(p == 0) {
-    z <- log(x)
-  } else {
-    z <- (x^p - 1)/p
-  }
-  return(z)
-}
-# function for Tukey transformation
-Tukey <- function(x, p = 0) {
-  if (p == 0) {
-    z <- log(x)
-  } else {
-    z <- (x^p - 1) / p
-  }
-  return(z)
-}
-# data preparation
-Master_Dataframe <- Master_Dataframe %>%
-  mutate(
-    Age_log = log(Age),
-    persons_sqrt = sqrt(Number_of_persons_involved),
-    vehicles_sqrt = sqrt(Number_of_vehicles_involved),
-    hour_log = log(Accident_hour + 1), # Added 1 to avoid log(0)
-    day_log = log(Accident_day),
-    group1_persons = ifelse(Sex == "female", persons_sqrt, NA),
-    group2_persons = ifelse(Sex == "male", persons_sqrt, NA),
-    group1_vehicles = ifelse(Sex == "female", vehicles_sqrt, NA),
-    group2_vehicles = ifelse(Sex == "male", vehicles_sqrt, NA),
-    persons_tukey = Tukey(Number_of_persons_involved, p = 0.5), # Tukey transformation
-    persons_boxcox = BC(Number_of_persons_involved, p = 0.5), # Box-Cox transformation
-    Age_sqrt = sqrt(Age),
-    Age_reciprocal = 1 / Age,
-    Age_fourth_root = Age^(1/4),
-    Accident_hour_shifted = ((Accident_hour - 5) %% 24) # Shifting to make QQ better:
-  ) 
-
-DF_For_Shapiro <- Master_Dataframe %>% 
-  slice_sample(n = 5000, replace = FALSE)# Shapiro-Wilk test has a maximum limit of 5,000 observations
-
-```
-
-
-
-
-
-``` {r Distribution Hour}
-# Shifted variable
-Accident_hour_hist <- ggplot(Master_Dataframe, aes(x = Accident_hour)) +
-    geom_histogram(binwidth = 1)
-Accident_hour_shifted <- ggplot(Master_Dataframe, aes(x = Accident_hour_shifted)) +
-    geom_histogram(binwidth = 1) +
-    scale_x_continuous(breaks = seq(0, 24, 1), labels = c("19", "20", "21", "22", "23", "00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"))
-gridExtra::grid.arrange(Accident_hour_hist, Accident_hour_shifted, ncol = 2)
-
-Accident_hour_shiftedQQ <- ggplot(data.frame(Master_Dataframe), aes(sample = Accident_hour_shifted)) +
-  geom_qq() +
-  geom_qq_line(color = "indianred3") +
-  labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "QQ Plot for Accident Hour")
-
-Accident_hour_QQ <- ggplot(data.frame(Master_Dataframe), aes(sample = Accident_hour)) +
-  geom_qq() +
-  geom_qq_line(color = "indianred3") +
-  labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "QQ Plot for Accident Hour")
-
-gridExtra::grid.arrange(Accident_hour_QQ,Accident_hour_shiftedQQ, ncol = 2)
-df_hour_shifted <- shapiro.test(DF_For_Shapiro$Accident_hour_shifted)
-df_hour_shifted <- as.data.frame(df_hour_shifted[c("statistic", "p.value")])
-colnames(df_hour_shifted) <- c("Statistic", "p-value")
-rownames(df_hour_shifted) <- NULL
-knitr::kable(df_hour_shifted, align = "c")
-
-
-```
-
-
-
-
-
 
 
 
 # Look into modeling and looking for outliers like I did on the group HW
 
-
+# I should find what state is most dangerous for July 4th and New Years, Also view just Feb to see what is going on with the line
 
 
 
