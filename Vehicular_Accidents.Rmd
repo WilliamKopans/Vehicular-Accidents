@@ -156,13 +156,13 @@ The goal of this analysis is to use temporal analysis techniques to better under
 
 Data was collected from the U.S. Department of Transportation's National Highway Traffic Safety Administration between `r min(Master_Dataframe$Accident_year)` and `r max(Master_Dataframe$Accident_year)`. The dataset has `r format(nrow(Master_Dataframe), big.mark=",")` accidents recorded and gives information on factors such as the date/time, if the participant was intoxicated, the injury severity, and the location. Prior to conducting any analysis, the dataset underwent a series of data cleaning and manipulation steps. Column names were modified to make them more human-readable, and data values were converted from numeric representations to text. These improved readability and consistency. Next, the dataset was cleaned and transformed using dplyr. Additional modifications included adding columns such as those which designate what region the accident took place or if an accident happened during the day or at night.
 
-The data manipulation and cleaning steps were performed using R version 4.2.2 (2022-10-31) on a MacBook Pro running macOS Monterey (12.4). All data manipulation and cleaning steps are documented in a script file for reproducibility purposes and can be viewed through dropdown "code" menus throughout the document.
+The data manipulation and cleaning steps were performed using R version 4.2.2 (2022-10-31) on a Mac Book Pro running macOS Monterrey (12.4). All data manipulation and cleaning steps are documented in a script file for reproducibility purposes and can be viewed through drop down "code" menus throughout the document.
 
 # Results:
 
 ### Graph 1: Number of Accidents by Month and Injury Severity
 
-The majority of accidents occur in July with the fewest in February. Surprisingly, there is not as comensorate a drop in the number of fatalities in February as compared with July as one may expect based on the total number of accidents being higher. Although lower during February, the number of fatalities remains fairly constant across the year at around `r Master_Dataframe %>% filter(Injury_Severity_Basic == "Fatal") %>%  group_by(Accident_month) %>% summarize(count = n()) %>% summarize(mean_count = mean(count)) %>% pull(mean_count) %>% round(digits = -3) %>% format(big.mark = ",")` deaths. There is a peak of suspected major and minor injuries in July, which is not reflected among the confirmed injuries. Fatal injuries, for instance, are elevated all summer. The number of accidents that do not result in any injury remains fairly steady across all months around `r Master_Dataframe %>% filter(Injury_severity == "No Apparent Injury") %>%  group_by(Accident_month) %>% summarize(count = n()) %>% summarize(mean_count = mean(count)) %>% pull(mean_count) %>% round(digits = -3) %>% format(big.mark = ",")` incidents. 
+The majority of accidents occur in July with the fewest in February. Surprisingly, there is not as commensurate a drop in the number of fatalities in February as compared with July as one may expect based on the total number of accidents being higher. Although lower during February, the number of fatalities remains fairly constant across the year at around `r Master_Dataframe %>% filter(Injury_Severity_Basic == "Fatal") %>%  group_by(Accident_month) %>% summarize(count = n()) %>% summarize(mean_count = mean(count)) %>% pull(mean_count) %>% round(digits = -3) %>% format(big.mark = ",")` deaths. There is a peak of suspected major and minor injuries in July, which is not reflected among the confirmed injuries. Fatal injuries, for instance, are elevated all summer. The number of accidents that do not result in any injury remains fairly steady across all months around `r Master_Dataframe %>% filter(Injury_severity == "No Apparent Injury") %>%  group_by(Accident_month) %>% summarize(count = n()) %>% summarize(mean_count = mean(count)) %>% pull(mean_count) %>% round(digits = -3) %>% format(big.mark = ",")` incidents. 
 
 ```{r Graph 1: Number of Accidents by Month and Injury Severity}
 ggplot(Master_Dataframe %>% filter(!is.na(Injury_severity)), aes(x = Month_Name, fill = Injury_severity)) +
@@ -177,7 +177,7 @@ ggplot(Master_Dataframe %>% filter(!is.na(Injury_severity)), aes(x = Month_Name,
 
 ### Graph 2: Number of Accidents per Month
 
-We can see that the south accounts for the majority of accidents and the northeast region accounts for the least. When adjusting the scales to not be uniform we can see a normal distribution of accidents in the midwest, northeast, and west regions centered around August. The south remains at a similar level across months.
+We can see that the south accounts for the majority of accidents and the northeast region accounts for the least. When adjusting the scales to not be uniform we can see a normal distribution of accidents in the Midwest, northeast, and west regions centered around August. The south remains at a similar level across months.
 
 ```{r Graph 2: Number of Accidents per Month}
 APM <- ggplot(Master_Dataframe %>% filter(!is.na(Datetime)), aes(x = month(Datetime, label = TRUE))) +
@@ -228,7 +228,7 @@ ggplot(subset(accidents_per_day, !(Month == 2 & Day == 29)), aes(x = Day, y = Ho
 
 ## Graph 4: Distribution of Age of Persons Involved in Accidents {.tabset}
 
-Across the whole year, the majority of accidents occur at night (as defined by 8:00 pm until midnight) and the fewest occur during the evening (as defined by 5:00 pm to 8:00 pm). It is important to note that the evening window is also the smallest in terms of number of hours it emcompasses which distorts accident count as periods are not uniformly long and are arbitrary. Starting in the evening, there are fewer people over the age of 60 getting in accidents which is likely a result of that group not being on the road as much as young and middle aged people.
+Across the whole year, the majority of accidents occur at night (as defined by 8:00 pm until midnight) and the fewest occur during the evening (as defined by 5:00 pm to 8:00 pm). It is important to note that the evening window is also the smallest in terms of number of hours it encompasses which distorts accident count as periods are not uniformly long and are arbitrary. Starting in the evening, there are fewer people over the age of 60 getting in accidents which is likely a result of that group not being on the road as much as young and middle aged people.
 
 We can see that, in general, men are involved in more accidents across the board than women. This is especially apparent between the ages of 16 (when people generally get their drivers licences) and 75. Before the age of 16 both genders are involved in similar numbers of accidents as the individuals identified as not driving and are simply passengers.
 
@@ -339,11 +339,11 @@ gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
 
 We can see that the majority of accidents involving alcohol occur late at night (midnight to 5:00 am) which is followed by the mid-day (noon to 5 pm) and nighttime (8:00 pm to midnight) periods. 
 
-In the morning there are very few accidents involving alcohol. There is a noticable spike in accidents among 24 year old men getting into accidents in the morning, but more than 3/4 of the other accidents are from sober drivers. 
+In the morning there are very few accidents involving alcohol. There is a noticeable spike in accidents among 24 year old men getting into accidents in the morning, but more than 3/4 of the other accidents are from sober drivers. 
 
-During the middle of the day there is a less noticable peak around 25 and instead men between 25 and 60 are getting into accidents from alcohol. It is important to note again that this is of a very small number of accidents involving alcohol at this time.
+During the middle of the day there is a less noticeable peak around 25 and instead men between 25 and 60 are getting into accidents from alcohol. It is important to note again that this is of a very small number of accidents involving alcohol at this time.
 
-Progressing from the evening period through the late night period we can see a signficant uptick in accidents, in particular those involving alcohol. Men between the ages of 20 and 60 remain the most at risk of getting into an accident while intoxicated during these periods. Late at night, when the majority of accidents take place, we can see that more than half of all accidents are caused by drunk men. 
+Progressing from the evening period through the late night period we can see a significant uptick in accidents, in particular those involving alcohol. Men between the ages of 20 and 60 remain the most at risk of getting into an accident while intoxicated during these periods. Late at night, when the majority of accidents take place, we can see that more than half of all accidents are caused by drunk men. 
 
 Across the board, women are generally involved in very few accidents involving alcohol, but at night and very late into the night there is a decent sized segment of the female population getting into accidents due to alcohol. Most of these are from female drivers between the ages of 20 and 60, with a spike around 26. 
 
@@ -628,7 +628,7 @@ ggplot(temp_df, aes(y = Age, x = Injury_Severity_Basic)) +
 
 
 ## Boxplot of Age by Injury Severity Over Time {.tabset}
-Over the course of the day more of the accidents involve younger individuals. For instance, the age of accidents which do not reuslt in an injury decreases by about a decade from the morning to late in the night.
+Over the course of the day more of the accidents involve younger individuals. For instance, the age of accidents which do not result in an injury decreases by about a decade from the morning to late in the night.
 
 Generally, the spread of age is largest during the mid-day period as people of all ages are awake. The spread narrows significantly as we enter the late night where most accidents are involve younger individuals (usually around the age of 25). One notable exception to this are individuals who died prior to the crash which remains to be an older demographic with a larger spread throughout the day.
 
@@ -680,7 +680,7 @@ ggplot(Master_Dataframe%>% filter(time_period == "late_night"), aes(x = Injury_s
 
 ## Graph 6: Distribution of Age by Sex Involved in Accidents
 
-During the morning, midday, and the evening the distribution of men and women is almost identical, with medians that are almost equal around 35 years old and a large number of accidents involving those around the age of 25 years old. Starting in the evening and continuing through the late night period we can see the median age lower to 25 years old, a decade drop from earlier in the day. We can also see a much more pronounced peak of accidents amoung young individuals around the age of 17 (presumably those who are new to driving, in partiuclar driving at night). Accordingly, the spread of ages decreases throughout the day. Throughout all time periods, men and women are mostly on par with each other in terms of the distribution of accidents amoung their groups.
+During the morning, midday, and the evening the distribution of men and women is almost identical, with medians that are almost equal around 35 years old and a large number of accidents involving those around the age of 25 years old. Starting in the evening and continuing through the late night period we can see the median age lower to 25 years old, a decade drop from earlier in the day. We can also see a much more pronounced peak of accidents among young individuals around the age of 17 (presumably those who are new to driving, in particular driving at night). Accordingly, the spread of ages decreases throughout the day. Throughout all time periods, men and women are mostly on par with each other in terms of the distribution of accidents among their groups.
 
 ```{r Graph 5: Distribution of Age by Sex Involved in Accidents}
 
@@ -709,9 +709,9 @@ ggplot(temp_df %>% filter(!is.na(Sex) & !is.na(time_period)), aes(x = Sex, y = A
 
 ### Graph 7: Number of Accidents by Vehicle Body Type and Injury Severity
 
-We can see that across all time periods automobiles are involved in the most accidents. This is unsurprising since the majority of vehicles on the road are automobiles. Most of the serious/fatal injuries of those in automobiles take place during the midday period when nearly 15,000 accidents occur in which there is a serious or fatal injury. During the evening there are generally far fewer serious or fatal accidents which is commensorate with the generally fewer number of accidents at that time.
+We can see that across all time periods automobiles are involved in the most accidents. This is unsurprising since the majority of vehicles on the road are automobiles. Most of the serious/fatal injuries of those in automobiles take place during the midday period when nearly 15,000 accidents occur in which there is a serious or fatal injury. During the evening there are generally far fewer serious or fatal accidents which is commensurate with the generally fewer number of accidents at that time.
 
-Trucks are involved in a significant number of accidents during the morning and at midday, but many of them do not result in any injury. Vans and minivans also get into accidents in the mornig and midday, but many more of those result in more injuries or deaths than with trucks (as a proportion of accidents vans are involved in).
+Trucks are involved in a significant number of accidents during the morning and at midday, but many of them do not result in any injury. Vans and minivans also get into accidents in the morning and midday, but many more of those result in more injuries or deaths than with trucks (as a proportion of accidents vans are involved in).
 
 ```{r Graph 4: Number of Accidents by Vehicle Body Type and Injury Severity}
 
@@ -759,11 +759,11 @@ labs(x = "Hour of day", y = "Day of week", fill = "Number of accidents", title =
 
 ### Teenage Accidents Involving Alcohol By Day and Region
 
-Earlier, we identified that the majority of accidents occur in the south. When looking at teenage drivers, the south remains to be a region where a lot of accidents take place. It is notable to point out that the delta between number of accidents on weekdays and weekends is very significant for southern states which is not as aparent (although still the case) in the other regions. The northeast remains a region with very few accidents.
+Earlier, we identified that the majority of accidents occur in the south. When looking at teenage drivers, the south remains to be a region where a lot of accidents take place. It is notable to point out that the delta between number of accidents on weekdays and weekends is very significant for southern states which is not as apparent (although still the case) in the other regions. The northeast remains a region with very few accidents.
 
 When we zoom in on which regions have the most accidents among teenagers under the influence, we can see that the south actually has fewer drunk teenage drivers relative to the other regions. The northeast and western states have the most teenage drivers getting into accidents that involve alcohol. 
 
-The weekends are a particularly risky time for teenage drivers to drive under the influence which is unsurprising since they are not in school. Generally, there are nearly double the number of accidents involving alcohol than those that don't of teens on weekends than on weekdays. Surprisingly, there is a lack of accidents involving alcohol among teens on Friday nights. Across all regions there is very little incrase in the numbers of accidents teens get into while drunk on Fridays as compared to other weekdays.  
+The weekends are a particularly risky time for teenage drivers to drive under the influence which is unsurprising since they are not in school. Generally, there are nearly double the number of accidents involving alcohol than those that don't of teens on weekends than on weekdays. Surprisingly, there is a lack of accidents involving alcohol among teens on Friday nights. Across all regions there is very little increase in the numbers of accidents teens get into while drunk on Fridays as compared to other weekdays.  
 
 ``` {r Teens}
 library(ggplot2)
@@ -844,7 +844,7 @@ ggplot(accidents_per_day , aes(x = Date, y = res2)) + geom_point(alpha = 0.1) +
   stat_smooth(method = "loess", se = FALSE) +
   ggtitle("Residuals from Quadratic Regression")
 ```
-Although an improvement over the first order polynomial model, there remains a slight curve that has critical points around 2005 and 2011 with a quadratic regression fit. This indicates that the trend is not linear and instead follows a polynomal trajectory.  
+Although an improvement over the first order polynomial model, there remains a slight curve that has critical points around 2005 and 2011 with a quadratic regression fit. This indicates that the trend is not linear and instead follows a polynomial trajectory.  
 
 
 ```{r Seasonal Analysis 3}
@@ -879,7 +879,7 @@ ggplot(accidents_per_day,  aes(x = Date, y = res3)) + geom_point(alpha = 0.1) +
   stat_smooth(method = "loess", se = FALSE, span = 0.2) +
 ggtitle("Residuals from LOESS Smoothing")
 ```
-The non-parametric fit is a significant improvement compard to the linear or polynomial fits (as the loess is almost a straight line), suggesting the number of accidents has some non-linear and/or non-monotonic components. 
+The non-parametric fit is a significant improvement compared to the linear or polynomial fits (as the loess is almost a straight line), suggesting the number of accidents has some non-linear and/or non-monotonic components. 
 
 ``` {r Exploring seasonality 1}
 accidents_per_day$MonthTwo <- month(accidents_per_day$Date, label=TRUE) 
@@ -888,7 +888,7 @@ ggplot(accidents_per_day, aes(x = MonthTwo, y = res3)) +
   geom_boxplot() + 
   labs(y = "Loess Residual")
 ```
-We can see that the plot follows a yearly oscillation cycle which peaks during the summer time and is the lowest during the winter. Since driving conditions are highly regionional, it is difficult to glean to what extent the model is accurately acounting for changes in driving conditions or habits. Therefore, it is important to understand the regional factors before moving forward.
+We can see that the plot follows a yearly oscillation cycle which peaks during the summer time and is the lowest during the winter. Since driving conditions are highly regional, it is difficult to glean to what extent the model is accurately accounting for changes in driving conditions or habits. Therefore, it is important to understand the regional factors before moving forward.
 
 #### Regional Analysis of first order residuals
 ``` {r Added to explore seasonality further}
@@ -910,11 +910,11 @@ ggplot(Master_DataframePerDay, aes(x = factor(Month_Name), y = res3)) +
 
 ```
 
-There exist large discrepencies between how well the model fits each region. The western states fit the national model best, but other regions such as the south are not modeled well. We can also make out a noticable oscilation in the midwest which peaks near zero in August (meaning that the model fits the data well during that period and falls off on either end). 
+There exist large discrepancies between how well the model fits each region. The western states fit the national model best, but other regions such as the south are not modeled well. We can also make out a noticeable oscillation in the Midwest which peaks near zero in August (meaning that the model fits the data well during that period and falls off on either end). 
 
-In the south the observed values are far greater than the predicted values based on the model. This is balanced out by the northeast, west, and to a lesser extent midwest regions which are understimated by the model.
+In the south the observed values are far greater than the predicted values based on the model. This is balanced out by the northeast, west, and to a lesser extent Midwest regions which are underestimated by the model.
 
-With these discrepencies in mind, we will continue our exploration without the seasonal component by subtracting the median residual to see if another pattern emerges. 
+With these discrepancies in mind, we will continue our exploration without the seasonal component by subtracting the median residual to see if another pattern emerges. 
 
 ``` {r Exploring seasonality 2}
 d3 <- accidents_per_day %>% 
@@ -924,7 +924,7 @@ d3 <- accidents_per_day %>%
 ggplot(d3, aes(x = MonthTwo, y = Resid.lev)) + geom_boxplot()  + labs(x = "Month")
 ```
 
-The spreads among months are generally consistant across months with slightly larger spreads in May, July, and September. We can also identify that the data in September ius skewed towards lower values than predicted.
+The spreads among months are generally consistent across months with slightly larger spreads in May, July, and September. We can also identify that the data in September is skewed towards lower values than predicted.
 
 ``` {r Exploring seasonality 3}
 
@@ -935,7 +935,7 @@ ggplot(d3, aes(x = YearTwo, y = Resid.lev)) + geom_point(col = "grey", cex = .6)
      theme(axis.text.x=element_text(angle=45, hjust = 1.5, vjust = 1.6,  size = 7)) + labs(x = "Year")
 ```
 
-We can see that the residuals generally fit the data well from September until May, but during the summer there has been a decline in data values as compared to predicted values over time. This could suggest a gradual offset in the periodicy of the two decades of data. We will fit a loess model to see if the trends for each month are monotonic by adopting a robust loess which controls for possible outliers in the data.
+We can see that the residuals generally fit the data well from September until May, but during the summer there has been a decline in data values as compared to predicted values over time. This could suggest a gradual offset in the periodicity of the two decades of data. We will fit a loess model to see if the trends for each month are monotonic by adopting a robust loess which controls for possible outliers in the data.
 
 ``` {r Exploring seasonality 4}
 
@@ -946,11 +946,11 @@ ggplot(d3, aes(x = YearTwo, y = Resid.lev)) + geom_point(col = "grey", cex = .6)
      theme(axis.text.x=element_text(angle=45, hjust = 1.5, vjust = 1.6,  size = 7))+ labs(x = "Year")
 
 ```
-The trends do not appear to be monotonic (except for May, October, and to a lesser extent September) which suggests that the cyclical nature of accidents occuring is not systemic. 
+The trends do not appear to be monotonic (except for May, October, and to a lesser extent September) which suggests that the cyclical nature of accidents occurring is not systemic. 
 
 
 ## Moving Window Analysis:
-Across all regions we can see that the number of accidents per day (mean in window) has been decreacing over the past two decades and has recently seen an uptick. The spread of mean values per window had a lot of variation in the late 20th century and became much more consistant around 2004 which has remained reasonably consistant with some windows being less uniform than in the 2004-2008 period. The recent uptick is notable, but remains signficantly lower than two decades ago.
+Across all regions we can see that the number of accidents per day (mean in window) has been decreasing over the past two decades and has recently seen an uptick. The spread of mean values per window had a lot of variation in the late 20th century and became much more consistent around 2004 which has remained reasonably consistent with some windows being less uniform than in the 2004-2008 period. The recent uptick is notable, but remains significantly lower than two decades ago.
 
 ``` {r Moving Window Statistics, message=FALSE}
 
@@ -1040,7 +1040,7 @@ ggplot(data = MW_Num_Per_Day, aes(x=Midpoint,Value))+
 rm("MW_Num_Per_Day","DayMeanFind")
 ```
 
-We can see that the northeastern states have consistently been safer than the other regions and that the western states have been the greatest risk over the past twenty years. The south saw a noticeable decrease in accidents between 1996 and 2011 which the other regions echoed but to a lesser extent. The midwest has not seen as significant an uptick recently as compared to the other regions and has nearly flatlined over the past six years.
+We can see that the northeastern states have consistently been safer than the other regions and that the western states have been the greatest risk over the past twenty years. The south saw a noticeable decrease in accidents between 1996 and 2011 which the other regions echoed but to a lesser extent. The Midwest has not seen as significant an uptick recently as compared to the other regions and has nearly flat lined over the past six years.
 
 ``` {r Region Analysis Daily, message=FALSE}
 
