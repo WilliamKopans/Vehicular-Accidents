@@ -2,17 +2,19 @@
 title: "Temporal Analysis of Vehicular Accidents"
 author: "William Kopans"
 date: "`r Sys.Date()`"
-output: 
+output:
   html_document:
     code_folding: hide
-    toc: true
-    toc_float: true
+    toc: yes
+    toc_float: yes
     theme: paper
-    fig.width: 10 # Does this work?
-    fig.height: 10 # Does this work?
-    suppress_messages: TRUE
-    suppress_warnings: TRUE
-editor_options: 
+    fig.width: 10
+    fig.height: 10
+    suppress_messages: yes
+    suppress_warnings: yes
+  word_document:
+    toc: yes
+editor_options:
   chunk_output_type: console
 ---
 
@@ -29,17 +31,10 @@ knitr::opts_chunk$set(echo = TRUE,
 ```
 
 ``` {r Import Dataset and libraries, message=FALSE}
-setwd("/Volumes/Courses/ES218_A_SP/wokopa26/Vehicular accidents/Apr26")
 library(ggplot2)
 library(tidyverse)
 library(lubridate)
-citation() 
-citation("ggplot2")
-citation("tidyverse")
-citation("lubridate")
-packageVersion("ggplot2")
-packageVersion("tidyverse")
-packageVersion("lubridate")
+
 set.seed(123)
 
 PackagesToCheck <- list( "ggplot2", "tidyverse", "lubridate")
@@ -76,7 +71,6 @@ sex <- sex %>%
 
 state_code <- read.csv("state_code.csv")
 ```
-# remember to remove setwd
 
 ``` {r Data Manipulation}
 col_names <- setNames(col_names$column_name, col_names$description)
@@ -154,13 +148,23 @@ rm("sex", "alcohol","state_code","man_coll","inj_sev","body_typ")
 
 # Temporal Analysis of Car Accident Data
 
+# Introduction:
 
+The goal of this analysis is to use temporal analysis techniques to better understand the root causes of traffic accidents, inform policy decisions, and educate drivers to reduce the risk of injury or death. Driving is one of the most dangerous activities that we participate in on a daily basis. Each year, `r library(dplyr); format(round(nrow(Master_Dataframe %>% filter(Injury_Severity_Basic == "Fatal")) / (max(Master_Dataframe$Accident_year)-min(Master_Dataframe$Accident_year)), digits = -2), scientific = FALSE, big.mark=",")` people die from car accidents. On a personal level, there are a lot of factors outside of your control when on the road, but one that you often can control is when you drive. Should you drive at night or wait until noon the next day? Should you drive during the holidays (in particular those that involve all-night drinking)? We should understand the root causes of traffic accidents to educate our divers, improve road infrastructure, and inform policy decisions. Using temporal analysis techniques focused on the date and time of day, we can glean insights into accident patterns and better inform people who want to change their habits to reduce their risk of getting injured or killed. While driving will always be inherently dangerous, we can take measures to minimize that risk by using data-driven insights.
 
-### Graph 16: Number of Accidents by Month and Injury Severity
+# Methods:
 
-The majority of accidents occur in July with the fewest in February. Surprisingly, there is not as commensorate a drop in the number of fatalities in February as compared with July as one may expect. Although lower during February, the number of fatalities remains fairly constant across the year at around 55,000 deaths. There is a peak of suspected major and minor injuries in July, which is not reflected among the confirmed injuries. Fatal injuries, for instance, are elevated all summer. The number of accidents that do not result in any injury remains fairly steady across all months around 31,000 incidents. 
+Data was collected from the U.S. Department of Transportation's National Highway Traffic Safety Administration between `r min(Master_Dataframe$Accident_year)` and `r max(Master_Dataframe$Accident_year)`. The dataset has `r format(nrow(Master_Dataframe), big.mark=",")` accidents recorded and gives information on factors such as the date/time, if the participant was intoxicated, the injury severity, and the location. Prior to conducting any analysis, the dataset underwent a series of data cleaning and manipulation steps. Column names were modified to make them more human-readable, and data values were converted from numeric representations to text. These improved readability and consistency. Next, the dataset was cleaned and transformed using dplyr. Additional modifications included adding columns such as those which designate what region the accident took place or if an accident happened during the day or at night.
 
-```{r Graph 16: Number of Accidents by Month and Injury Severity}
+The data manipulation and cleaning steps were performed using R version 4.2.2 (2022-10-31) on a MacBook Pro running macOS Monterey (12.4). All data manipulation and cleaning steps were documented in a script file for reproducibility purposes and can be viewed through dropdown "code" menus throughout the knit document.
+
+# Results:
+
+### Graph 1: Number of Accidents by Month and Injury Severity
+
+The majority of accidents occur in July with the fewest in February. Surprisingly, there is not as comensorate a drop in the number of fatalities in February as compared with July as one may expect. Although lower during February, the number of fatalities remains fairly constant across the year at around 55,000 deaths. There is a peak of suspected major and minor injuries in July, which is not reflected among the confirmed injuries. Fatal injuries, for instance, are elevated all summer. The number of accidents that do not result in any injury remains fairly steady across all months around 31,000 incidents. 
+
+```{r Graph 1: Number of Accidents by Month and Injury Severity}
 ggplot(Master_Dataframe %>% filter(!is.na(Injury_severity)), aes(x = Month_Name, fill = Injury_severity)) +
   geom_bar() +
   labs(x = "Month", y = "Number of accidents", title = "Number of Accidents by Month and Injury Severity") +
@@ -171,10 +175,10 @@ ggplot(Master_Dataframe %>% filter(!is.na(Injury_severity)), aes(x = Month_Name,
 
 
 
-### Graph 1: Number of Accidents per Month
+### Graph 2: Number of Accidents per Month
 We can see that the south accounts for the majority of accidents and the northeast region accounts for the least. When adjusting the scales to not be uniform we can see a normal distribution of accidents in the midwest, northeast, and west regions centered around August. The south remains at a similar level across months.
 
-```{r Graph 1: Number of Accidents per Month}
+```{r Graph 2: Number of Accidents per Month}
 APM <- ggplot(Master_Dataframe %>% filter(!is.na(Datetime)), aes(x = month(Datetime, label = TRUE))) +
   geom_bar() +
   ggtitle("Number of Accidents per Month") + 
@@ -193,14 +197,14 @@ rm("APM","APMRel")
 ```
 
 
-### Graph 18: Analyzing the Relationship Between Time and Accidents Across Different Months 
+### Graph 3: Analyzing the Relationship Between Time and Accidents Across Different Months 
 Note: February 29th removed to account for leap years 
 
 When graphing the number of accidents every day over the year, we can see that New Years and July 4th are dangerous times to be on the road. In particular, after 4pm on July 4th and just after midnight on January 1st are especially dangerous. In general, mornings are reasonably safe and accidents pick up around 9:00 am. Accidents then become much more frequent after 4:00 pm as people leave from work and kids get out of school.
 
 
 
-```{r Graph 18: Analyzing the Relationship Between Time and Accidents Across Different Months, message=FALSE}
+```{r Graph 3: Analyzing the Relationship Between Time and Accidents Across Different Months, message=FALSE}
 accidents_per_day <- Master_Dataframe %>%
 mutate(DoY = yday(Datetime), Month = month(Datetime), Day = day(Datetime), Hour = hour(Datetime)) %>%
 group_by(Month, Day, Hour) %>%
@@ -702,13 +706,13 @@ ggplot(temp_df %>% filter(!is.na(Sex) & !is.na(time_period)), aes(x = Sex, y = A
 
 # Accident Characteristics Over Time
 
-### Graph 15: Number of Accidents by Vehicle Body Type and Injury Severity
+### Graph 4: Number of Accidents by Vehicle Body Type and Injury Severity
 
 We can see that across all time periods automobiles are involved in the most accidents. This is unsurprising since the majority of vehicles on the road are automobiles. Most of the serious/fatal injuries of those in automobiles take place during the midday period when nearly 15,000 accidents occur in which there is a serious or fatal injury. During the evening there are generally far fewer serious or fatal accidents which is commensorate with the generally fewer number of accidents at that time.
 
 Trucks are involved in a significant number of accidents during the morning and at midday, but many of them do not result in any injury. Vans and minivans also get into accidents in the mornig and midday, but many more of those result in more injuries or deaths than with trucks (as a proportion of accidents vans are involved in).
 
-```{r Graph 15: Number of Accidents by Vehicle Body Type and Injury Severity}
+```{r Graph 4: Number of Accidents by Vehicle Body Type and Injury Severity}
 
 temp_df <- Master_Dataframe %>% 
   filter(time_period != "unknown") %>% 
@@ -734,13 +738,13 @@ ggplot(temp_df , aes(y = Vehicle_body_type, fill = Injury_severity)) +
 
 
 
-### Graph 17: Heatmap of Accidents by Hour and Day of the Week
+### Graph 5: Heatmap of Accidents by Hour and Day of the Week
 
 We can see that very few accidents occur during the week before 5:00 am. There is a slight uptick in the number of accidents around 8:00 am as people commute to work, but this subsides until 3:00 pm when accidents pick up and continue to be high through 6:00 pm. Of the weekdays, Friday evenings and nights are the most dangerous, likely caused by people eager to get home for the weekend and those who decide to party later into the night. The elevated number of accidents on Friday continue into Saturday until 4:00am.
 
 On the weekends it is generally pretty safe to drive between 4:00am and 11:00 am. After noon accidents tend to pick up. Similar to Friday nights, Saturday nights are periods when many accidents take place and this continues through Sunday at 4:00 am. Sundays have a large number of accidents around 6:00 pm, but there are far fewer accidents late at night than on Fridays or Saturdays, presumably because people are getting ready for the work week.
 
-```{r Graph 17: Heatmap of Accidents by Hour and Day of the Week, message=FALSE}
+```{r Graph 5: Heatmap of Accidents by Hour and Day of the Week, message=FALSE}
 accidents_by_hour_weekday <- Master_Dataframe %>%
 group_by(hour = hour(Datetime), weekday = wday(Datetime, label = TRUE)) %>%
 summarize(n = n())
@@ -799,7 +803,7 @@ gridExtra::grid.arrange(P1Teen, P2Teen, ncol = 2, widths = c(3, 4))
 ```
 
 
-### Graph 19: Time-based analysis - Seasonal Analysis
+### Graph 6: Seasonal Analysis
 Below we will begin an exploration of the trends in the number of accidents.
 
 ```{r Seasonal Analysis 1}
@@ -1176,15 +1180,42 @@ rm("south", "west", "midwest","northeast","southMW", "westMW", "northeastMW", "m
 
 ```
 
+# Discussion:
+
+## References
+
+```{r Citation, include = FALSE}
+citation()
+citation("dplyr")
+citation("ggplot2")
+citation("gridExtra")
+citation("tidyverse")
+citation("lubridate")
+
+```
+
+
+[1]  R Core Team (2022). R: A language and environment for statistical computing. R Foundation for Statistical Computing,
+  Vienna, Austria. URL https://www.R-project.org/.
+
+[2]  Wickham H, François R, Henry L, Müller K, Vaughan D (2023). _dplyr: A Grammar of Data Manipulation_. R package version
+  1.1.0, <https://CRAN.R-project.org/package=dplyr>.
+
+[3]  H. Wickham. ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York, 2016.
+
+[4]  Auguie B (2017). _gridExtra: Miscellaneous Functions for "Grid" Graphics_. R package version 2.3,
+  <https://CRAN.R-project.org/package=gridExtra>.
+
+[5]  Wickham H, Averick M, Bryan J, Chang W, McGowan LD, François R, Grolemund G, Hayes A, Henry L, Hester J, Kuhn M,
+  Pedersen TL, Miller E, Bache SM, Müller K, Ooms J, Robinson D, Seidel DP, Spinu V, Takahashi K, Vaughan D, Wilke C, Woo
+  K, Yutani H (2019). “Welcome to the tidyverse.” _Journal of Open Source Software_, *4*(43), 1686.
+  doi:10.21105/joss.01686 <https://doi.org/10.21105/joss.01686>.
+
+[6]  Garrett Grolemund, Hadley Wickham (2011). Dates and Times Made Easy with lubridate. Journal of Statistical Software,
+  40(3), 1-25. URL https://www.jstatsoft.org/v40/i03/.
+
+  
 
 
 
-
-# Look into modeling and looking for outliers like I did on the group HW
-
-# I should find what state is most dangerous for July 4th and New Years, Also view just Feb to see what is going on with the line
-
-# What leads to fatal accidents? (Subset data or mutate a column identifying fatal and facet)
-
-# Maybe look at deaths of children and where the collisions take place, like are sideswipes more dangerous cause theyre in the back seat?
 
