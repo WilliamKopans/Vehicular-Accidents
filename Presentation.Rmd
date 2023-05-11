@@ -1081,7 +1081,6 @@ rm("south", "west", "midwest","northeast","southMW", "westMW", "northeastMW", "m
 
 
 # Discussion Continued:
-* Trucks get in a significant number of accidents in the morning and midday which result in deaths at a heightened rate
 * Accidents start around 9:00 am (8:00 am on weekdays), become more dangerous around 4:00 pm, and the twilight hours are the most dangerous
 * Late-night accidents involve a significant number of young people, with the majority being men, and involve alcohol
 * Fridays and Saturdays are particularly dangerous, especially during the evening and early morning hours
