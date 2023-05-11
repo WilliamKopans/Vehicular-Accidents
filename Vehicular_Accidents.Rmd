@@ -21,7 +21,9 @@ editor_options:
 ```{r setup, include=FALSE}
 
 library(here)
-knitr::opts_chunk$set(echo = TRUE,
+knitr::opts_chunk$set(warning = FALSE, 
+                      message = FALSE,
+                      echo = TRUE,
                       cache = TRUE,
                       cache.path = here::here(".cache"),
                       cache.size = 1500,
@@ -223,10 +225,29 @@ ggplot(subset(accidents_per_day, !(Month == 2 & Day == 29)), aes(x = Day, y = Ho
 ```
 
 
+### Graph 4: Heatmap of Accidents by Hour and Day of the Week
+
+We can see that very few accidents occur during the week before 5:00 am. There is a slight uptick in the number of accidents around 8:00 am as people commute to work, but this subsides until 3:00 pm when accidents pick up and continue to be high through 6:00 pm. Of the weekdays, Friday evenings and nights are the most dangerous, likely caused by people eager to get home for the weekend and those who decide to party later into the night. The elevated number of accidents on Friday continue into Saturday until 4:00am.
+
+On the weekends it is generally pretty safe to drive between 4:00am and 11:00 am. After noon accidents tend to pick up. Similar to Friday nights, Saturday nights are periods when many accidents take place and this continues through Sunday at 4:00 am. Sundays have a large number of accidents around 6:00 pm, but there are far fewer accidents late at night than on Fridays or Saturdays, presumably because people are getting ready for the work week.
+
+```{r Graph 4: Heatmap of Accidents by Hour and Day of the Week, message=FALSE}
+accidents_by_hour_weekday <- Master_Dataframe %>%
+group_by(hour = hour(Datetime), weekday = wday(Datetime, label = TRUE)) %>%
+summarize(n = n())
+
+ggplot(accidents_by_hour_weekday, aes(x = hour, y = weekday, fill = n)) +
+geom_tile() +
+scale_fill_gradient(low = "#f7f7f7", high = "indianred3") +
+labs(x = "Hour of day", y = "Day of week", fill = "Number of accidents", title = "Heatmap of Accidents by Hour and Day of the Week")+
+  theme_minimal()
+```
+
+
 
 # Demographic Analysis Over The Day 
 
-## Graph 4: Distribution of Age of Persons Involved in Accidents {.tabset}
+## Graph 5: Distribution of Age of Persons Involved in Accidents {.tabset}
 
 Across the whole year, the majority of accidents occur at night (as defined by 8:00 pm until midnight) and the fewest occur during the evening (as defined by 5:00 pm to 8:00 pm). It is important to note that the evening window is also the smallest in terms of number of hours it encompasses which distorts accident count as periods are not uniformly long and are arbitrary. Starting in the evening, there are fewer people over the age of 60 getting in accidents which is likely a result of that group not being on the road as much as young and middle aged people.
 
@@ -235,7 +256,7 @@ We can see that, in general, men are involved in more accidents across the board
 Although the percent of accidents where men are involved is elevated relative to female for the vast majority of ages, we can see that during the night/twilight hours the proportion of men to women increases among older people. The period of time when male and female are most balanced is during the mid-day period. 
 
 ### Morning
-```{r Distribution of Age of Persons Involved in Accidents Morning, message=FALSE}
+```{r Graph 5: Distribution of Age of Persons Involved in Accidents Morning, message=FALSE}
 SexAgeGraph <- Master_Dataframe %>% 
   filter(!is.na(Sex) & !is.na(Age) & time_period == "morning") %>% 
   group_by(Age, Sex) %>% 
@@ -600,13 +621,13 @@ gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
 ```
 
 
-## Graph 5: Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex 
+## Graph 6: Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex 
 
 We can see that both non-fatal and fatal accidents tend to involve younger individuals over the course of the day. As such, the spread decreases throughout the day and especially small late at night. The spread of age is largest during the midday period. At night and during the late night periods, the median is near the 25th percentile for age which indicates that the majority of the data points are clustered towards the lower end of the distribution, with relatively few extreme values towards the upper end of the age distribution.
 
 Across all times, the median age is higher for fatal accidents than non-fatal accidents. This makes sense since older individuals may have more health complications and more frail bodies overall. 
 
-```{r Graph 11: Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex}
+```{r Graph 6: Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex}
 
 temp_df <- Master_Dataframe %>% 
   filter(!is.na(Sex) & time_period != "unknown") %>%
@@ -678,11 +699,11 @@ ggplot(Master_Dataframe%>% filter(time_period == "late_night"), aes(x = Injury_s
 ```
 
 
-## Graph 6: Distribution of Age by Sex Involved in Accidents
+## Graph 7: Distribution of Age by Sex Involved in Accidents
 
 During the morning, midday, and the evening the distribution of men and women is almost identical, with medians that are almost equal around 35 years old and a large number of accidents involving those around the age of 25 years old. Starting in the evening and continuing through the late night period we can see the median age lower to 25 years old, a decade drop from earlier in the day. We can also see a much more pronounced peak of accidents among young individuals around the age of 17 (presumably those who are new to driving, in particular driving at night). Accordingly, the spread of ages decreases throughout the day. Throughout all time periods, men and women are mostly on par with each other in terms of the distribution of accidents among their groups.
 
-```{r Graph 5: Distribution of Age by Sex Involved in Accidents}
+```{r Graph 7: Distribution of Age by Sex Involved in Accidents}
 
 temp_df <- Master_Dataframe %>% 
   filter(!is.na(Sex) & time_period != "unknown") %>%
@@ -707,13 +728,14 @@ ggplot(temp_df %>% filter(!is.na(Sex) & !is.na(time_period)), aes(x = Sex, y = A
 
 # Accident Characteristics Over Time
 
-### Graph 7: Number of Accidents by Vehicle Body Type and Injury Severity
+### Graph 8: Number of Accidents by Vehicle Body Type and Injury Severity
 
-We can see that across all time periods automobiles are involved in the most accidents. This is unsurprising since the majority of vehicles on the road are automobiles. Most of the serious/fatal injuries of those in automobiles take place during the midday period when nearly 15,000 accidents occur in which there is a serious or fatal injury. During the evening there are generally far fewer serious or fatal accidents which is commensurate with the generally fewer number of accidents at that time.
+We can see that across all time periods automobiles are involved in the most accidents. This is unsurprising since the majority of vehicles on the road are automobiles. Most of the serious/fatal injuries of those in automobiles take place during the midday period when nearly `r Master_Dataframe %>% filter(Injury_severity %in% c("Fatal Injury", "Died Prior to Crash", "Suspected Serious Injury"), time_period == "midday", Vehicle_body_type == "Automobiles") %>% summarize(count = n()) %>% pull(count) %>% round(-4) %>% format(big.mark = ",", scientific = FALSE)` accidents occur in which there is a serious or fatal injury (or suspected). During the evening there are generally far fewer serious or fatal accidents which is commensurate with the generally fewer number of accidents at that time.
+
 
 Trucks are involved in a significant number of accidents during the morning and at midday, but many of them do not result in any injury. Vans and minivans also get into accidents in the morning and midday, but many more of those result in more injuries or deaths than with trucks (as a proportion of accidents vans are involved in).
 
-```{r Graph 4: Number of Accidents by Vehicle Body Type and Injury Severity}
+```{r Graph 8: Number of Accidents by Vehicle Body Type and Injury Severity}
 
 temp_df <- Master_Dataframe %>% 
   filter(time_period != "unknown") %>% 
@@ -738,76 +760,10 @@ ggplot(temp_df , aes(y = Vehicle_body_type, fill = Injury_severity)) +
 ```
 
 
-
-### Graph 8: Heatmap of Accidents by Hour and Day of the Week
-
-We can see that very few accidents occur during the week before 5:00 am. There is a slight uptick in the number of accidents around 8:00 am as people commute to work, but this subsides until 3:00 pm when accidents pick up and continue to be high through 6:00 pm. Of the weekdays, Friday evenings and nights are the most dangerous, likely caused by people eager to get home for the weekend and those who decide to party later into the night. The elevated number of accidents on Friday continue into Saturday until 4:00am.
-
-On the weekends it is generally pretty safe to drive between 4:00am and 11:00 am. After noon accidents tend to pick up. Similar to Friday nights, Saturday nights are periods when many accidents take place and this continues through Sunday at 4:00 am. Sundays have a large number of accidents around 6:00 pm, but there are far fewer accidents late at night than on Fridays or Saturdays, presumably because people are getting ready for the work week.
-
-```{r Graph 5: Heatmap of Accidents by Hour and Day of the Week, message=FALSE}
-accidents_by_hour_weekday <- Master_Dataframe %>%
-group_by(hour = hour(Datetime), weekday = wday(Datetime, label = TRUE)) %>%
-summarize(n = n())
-
-ggplot(accidents_by_hour_weekday, aes(x = hour, y = weekday, fill = n)) +
-geom_tile() +
-scale_fill_gradient(low = "#f7f7f7", high = "indianred3") +
-labs(x = "Hour of day", y = "Day of week", fill = "Number of accidents", title = "Heatmap of Accidents by Hour and Day of the Week")+
-  theme_minimal()
-```
-
-### Teenage Accidents Involving Alcohol By Day and Region
-
-Earlier, we identified that the majority of accidents occur in the south. When looking at teenage drivers, the south remains to be a region where a lot of accidents take place. It is notable to point out that the delta between number of accidents on weekdays and weekends is very significant for southern states which is not as apparent (although still the case) in the other regions. The northeast remains a region with very few accidents.
-
-When we zoom in on which regions have the most accidents among teenagers under the influence, we can see that the south actually has fewer drunk teenage drivers relative to the other regions. The northeast and western states have the most teenage drivers getting into accidents that involve alcohol. 
-
-The weekends are a particularly risky time for teenage drivers to drive under the influence which is unsurprising since they are not in school. Generally, there are nearly double the number of accidents involving alcohol than those that don't of teens on weekends than on weekdays. Surprisingly, there is a lack of accidents involving alcohol among teens on Friday nights. Across all regions there is very little increase in the numbers of accidents teens get into while drunk on Fridays as compared to other weekdays.  
-
-``` {r Teens}
-library(ggplot2)
-
-# Filter the data to only include accidents involving teens (ages 16-19)
-teens <- Master_Dataframe %>% filter(Age >= 16 & Age <= 19)
-
-# Plot 1: Number of accidents by day of the week for teens
-P1Teen <- ggplot(teens %>% filter(!is.na(Alcohol_involvement)), aes(x = Accident_weekday, fill = Alcohol_involvement)) +
-  geom_bar() +
-  labs(
-    # title = "Number of accidents by day of the week for teens",
-    title = "[Plot 1] Number of accidents by day of the week for teens [Plot 2] Proportion of alcohol involvement by day of the week for teens",
-       x = "Day of the week",
-       y = "Number of accidents") +
-  facet_wrap( ~ region)+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-  guides(fill = "none")+
-  theme_minimal()
-
-# Plot 2: Proportion of alcohol involvement by day of the week for teens
-P2Teen <- ggplot(teens %>% filter(!is.na(Alcohol_involvement)), aes(x = Accident_weekday , fill = Alcohol_involvement)) +
-  geom_bar(position = "fill") +
-  labs(
-    # title = "Proportion of alcohol involvement by day of the week for teens",
-      title = "",
-       x = "Day of the week",
-       y = "Proportion of accidents") +
-  facet_wrap( ~ region)+
-  theme(legend.position = "bottom", 
-        legend.title = element_blank()) + 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
-gridExtra::grid.arrange(P1Teen, P2Teen, ncol = 2, widths = c(3, 4))
-
-```
-
-
 ### Graph 9: Seasonal Analysis
 Below we will begin an exploration of the trends in the number of accidents.
 
-```{r Seasonal Analysis 1}
+```{r Graph 9: Seasonal Analysis 1}
 accidents_per_day <- Master_Dataframe %>%
   group_by(Date) %>%
   summarise(per_day = n())
@@ -1107,7 +1063,14 @@ rm("south", "west", "midwest","northeast","southMW", "westMW", "northeastMW", "m
 
 # Discussion:
 
-## References
+There are clear patterns and trends in car accidents that can be identified based on the time of year and time of the day which can be made more specific using factors such as age or gender. The majority of accidents occur in July, with the fewest in February, following a cyclic pattern. Additionally, New Years and July 4th are very dangerous times to be on the road. Most car accidents occur midday, with vehicles used for commercial purposes such as trucks involved in more accidents during the morning and midday, which are more likely to result in a death. Across the entire day, accidents tend to involve younger individuals, whereas fatal accidents tend to involve older individuals than non-fatal accidents.
+
+
+The majority of accidents occur in the South and the fewest in the Northeast, with the Northeast, Midwest, and Western regions following a cyclic pattern of accidents by month, while the South remains high year-round. Across the country, accidents start to occur around 9:00 am (8:00 am on weekdays), kicking into high gear around 4:00 pm, and driving becomes more dangerous during the twilight hours. A significant number of young people get into accidents late at night, with the majority being men. During the twilight hours, there are also the most accidents involving alcohol. Fridays and Saturdays are particularly dangerous, especially during the evening and early morning hours, while mornings through midday on weekends are generally safer. 
+
+No matter the time of day, men are generally more at risk of being in a car accident than women, with the jump in risk starting as soon as they get their license. Across all hours, women are less likely to get into an accident due to intoxication, but the largest number of women in accidents due to alcohol is late at night. Between 5 am and 8 pm, the distribution of ages of men and women is very similar, with medians around 35 years old and a large number of accidents involving those around 22 years old. However, starting at 8 pm, the median drops a decade towards 25 years old with a much smaller distribution of ages, mostly around the age of 20. These factors should be taken into account when driving to minimize the risk of accidents.
+
+# References
 
 ```{r Citation, include = FALSE}
 citation()
