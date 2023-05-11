@@ -149,18 +149,13 @@ rm("sex", "alcohol","state_code","man_coll","inj_sev","body_typ")
 - Data Source: U.S. Department of Transportation’s National Highway Traffic Safety Administration
 - Time Period: `r min(Master_Dataframe$Accident_year)` - `r max(Master_Dataframe$Accident_year)`
 - Dataset Size: `r format(nrow(Master_Dataframe), big.mark=",")` accidents recorded
-- Information Captured: Date/time, intoxication, injury severity, location
+- Information Captured: Date/time, intoxication, injury severity, location, etc.
 - Data Cleaning and Manipulation Steps:
-    - Column names modified for readability
-    - Numeric values converted to text for consistency
+    - Column/Row names modified for readability
     - Data cleaned and transformed using dplyr
     - Additional columns added for region and accident timing
 
-
-
-# Results:
-
-### Graph 1: Number of Accidents by Month and Injury Severity
+# Number of Accidents by Month and Injury Severity:
 
 - Accident statistics by month:
   - Most accidents occur in July
@@ -177,7 +172,7 @@ rm("sex", "alcohol","state_code","man_coll","inj_sev","body_typ")
   - Around `r Master_Dataframe %>% filter(Injury_severity == "No Apparent Injury") %>%  group_by(Accident_month) %>% summarize(count = n()) %>% summarize(mean_count = mean(count)) %>% pull(mean_count) %>% round(digits = -3) %>% format(big.mark = ",")` incidents per month
 
 
-```{r Graph 1: Number of Accidents by Month and Injury Severity}
+```{r Graph 1: Number of Accidents by Month and Injury Severity, fig.width = 12}
 ggplot(Master_Dataframe %>% filter(!is.na(Injury_severity)), aes(x = Month_Name, fill = Injury_severity)) +
   geom_bar() +
   labs(x = "Month", y = "Number of accidents", title = "Number of Accidents by Month and Injury Severity") +
@@ -188,14 +183,14 @@ ggplot(Master_Dataframe %>% filter(!is.na(Injury_severity)), aes(x = Month_Name,
 
 
 
-### Graph 2: Number of Accidents per Month
+# Number of Accidents per Month
 
 - Majority of accidents occur in the south region
 - Northeast region has the least accidents
 - Midwest, northeast, and west regions show a normal distribution of accidents centered around August when adjusting non-uniform scales
 - South region shows similar accident levels across months
 
-```{r Graph 2: Number of Accidents per Month}
+```{r Graph 2: Number of Accidents per Month, fig.width = 12}
 APM <- ggplot(Master_Dataframe %>% filter(!is.na(Datetime)), aes(x = month(Datetime, label = TRUE))) +
   geom_bar() +
   ggtitle("Number of Accidents per Month") + 
@@ -214,7 +209,7 @@ rm("APM","APMRel")
 ```
 
 
-### Graph 3: Analyzing the Relationship Between Time and Accidents Across Different Months 
+# Analyzing the Relationship Between Time and Accidents Across Different Months 
 Note: February 29th removed to account for leap years 
 
 - New Year's and July 4th are dangerous times to be on the road
@@ -243,7 +238,7 @@ ggplot(subset(accidents_per_day, !(Month == 2 & Day == 29)), aes(x = Day, y = Ho
 ```
 
 
-### Graph 4: Heatmap of Accidents by Hour and Day of the Week
+# Heatmap of Accidents by Hour and Day of the Week
 
 - Weekdays: Few accidents before 5:00 am
 - Weekdays: Uptick when going to (8am) and leaving (3-6pm) work
@@ -262,11 +257,7 @@ labs(x = "Hour of day", y = "Day of week", fill = "Number of accidents", title =
   theme_minimal()
 ```
 
-
-
-# Demographic Analysis Over The Day 
-
-## Graph 5: Distribution of Age of Persons Involved in Accidents
+# Distribution of Age of Persons Involved in Accidents
 
 - Majority of accidents occur at night (8:00 pm to midnight)
 - Fewest accidents occur during the evening (5:00 pm to 8:00 pm)
@@ -278,9 +269,6 @@ labs(x = "Hour of day", y = "Day of week", fill = "Number of accidents", title =
 - Male and female involvement in accidents are most balanced during mid-day period.
 
 ### Morning
-
-Filler Words
-
 ```{r Graph 5: Distribution of Age of Persons Involved in Accidents Morning, message=FALSE}
 SexAgeGraph <- Master_Dataframe %>% 
   filter(!is.na(Sex) & !is.na(Age) & time_period == "morning") %>% 
@@ -297,14 +285,21 @@ AgeSexTwo <- ggplot(data = SexAgeGraph, aes(x = Age, y = Percent, fill = Sex)) +
   ggtitle("Percent of Each Sex Who Are In Accidents By Age")+
   geom_abline(intercept = 50, slope = 0, alpha = 0.75, linetype = "dashed")
 
-GraphFiveA <- gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
+gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
 ```
 
+# Distribution of Age of Persons Involved in Accidents
+
+- Majority of accidents occur at night (8:00 pm to midnight)
+- Fewest accidents occur during the evening (5:00 pm to 8:00 pm)
+- Evening window is smallest and distorts accident count
+- Fewer people over age 60 get in accidents in the evening
+- Men are involved in more accidents than women across the board
+- Men involvement in accidents is especially apparent between ages 16 and 75
+- During night/twilight hours, proportion of men to women increases among older people
+- Male and female involvement in accidents are most balanced during mid-day period.
+
 ### Mid-Day
-
-Filler Words
-
-
 ```{r Distribution of Age of Persons Involved in Accidents Midday, message=FALSE}
 SexAgeGraph <- Master_Dataframe %>% 
   filter(!is.na(Sex) & !is.na(Age) & time_period == "midday") %>% 
@@ -321,14 +316,21 @@ AgeSexTwo <- ggplot(data = SexAgeGraph, aes(x = Age, y = Percent, fill = Sex)) +
   ggtitle("Percent of Each Sex Who Are In Accidents By Age")+
   geom_abline(intercept = 50, slope = 0, alpha = 0.75, linetype = "dashed")
 
-GraphFiveB <- gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
+gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
 ```
 
+# Distribution of Age of Persons Involved in Accidents
+
+- Majority of accidents occur at night (8:00 pm to midnight)
+- Fewest accidents occur during the evening (5:00 pm to 8:00 pm)
+- Evening window is smallest and distorts accident count
+- Fewer people over age 60 get in accidents in the evening
+- Men are involved in more accidents than women across the board
+- Men involvement in accidents is especially apparent between ages 16 and 75
+- During night/twilight hours, proportion of men to women increases among older people
+- Male and female involvement in accidents are most balanced during mid-day period.
+
 ### Evening
-
-Filler Words
-
-
 ```{r Distribution of Age of Persons Involved in Accidents Evening, message=FALSE}
 SexAgeGraph <- Master_Dataframe %>% 
   filter(!is.na(Sex) & !is.na(Age) & time_period == "evening") %>% 
@@ -345,14 +347,21 @@ AgeSexTwo <- ggplot(data = SexAgeGraph, aes(x = Age, y = Percent, fill = Sex)) +
   ggtitle("Percent of Each Sex Who Are In Accidents By Age")+
   geom_abline(intercept = 50, slope = 0, alpha = 0.75, linetype = "dashed")
 
-GraphFiveC <- gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
+gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
 ```
 
+# Distribution of Age of Persons Involved in Accidents
+
+- Majority of accidents occur at night (8:00 pm to midnight)
+- Fewest accidents occur during the evening (5:00 pm to 8:00 pm)
+- Evening window is smallest and distorts accident count
+- Fewer people over age 60 get in accidents in the evening
+- Men are involved in more accidents than women across the board
+- Men involvement in accidents is especially apparent between ages 16 and 75
+- During night/twilight hours, proportion of men to women increases among older people
+- Male and female involvement in accidents are most balanced during mid-day period.
+
 ### Night
-
-Filler Words
-
-
 ```{r Distribution of Age of Persons Involved in Accidents Evening Night, message=FALSE}
 SexAgeGraph <- Master_Dataframe %>% 
   filter(!is.na(Sex) & !is.na(Age) & time_period == "night") %>% 
@@ -369,14 +378,21 @@ AgeSexTwo <- ggplot(data = SexAgeGraph, aes(x = Age, y = Percent, fill = Sex)) +
   ggtitle("Percent of Each Sex Who Are In Accidents By Age")+
   geom_abline(intercept = 50, slope = 0, alpha = 0.75, linetype = "dashed")
 
-GraphFiveD <- gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
+gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
 ```
 
+# Distribution of Age of Persons Involved in Accidents
+
+- Majority of accidents occur at night (8:00 pm to midnight)
+- Fewest accidents occur during the evening (5:00 pm to 8:00 pm)
+- Evening window is smallest and distorts accident count
+- Fewer people over age 60 get in accidents in the evening
+- Men are involved in more accidents than women across the board
+- Men involvement in accidents is especially apparent between ages 16 and 75
+- During night/twilight hours, proportion of men to women increases among older people
+- Male and female involvement in accidents are most balanced during mid-day period.
+
 ### Late night
-
-Filler Words
-
-
 ```{r Distribution of Age of Persons Involved in Accidents Evening Late Night, message=FALSE, warning=FALSE}
 SexAgeGraph <- Master_Dataframe %>% 
   filter(!is.na(Sex) & !is.na(Age) & time_period == "late_night") %>% 
@@ -393,14 +409,10 @@ AgeSexTwo <- ggplot(data = SexAgeGraph, aes(x = Age, y = Percent, fill = Sex)) +
   ggtitle("Percent of Each Sex Who Are In Accidents By Age")+
   geom_abline(intercept = 50, slope = 0, alpha = 0.75, linetype = "dashed")
 
-GraphFiveE <- gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
+gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
 ```
 
-``` {r Graph Five Total}
-gridExtra::grid.arrange(GraphFiveA, GraphFiveB,GraphFiveC,GraphFiveD,GraphFiveE)
-```
-
-## Accidents Caused By Intoxication And Gender Over The Day
+# Accidents Caused By Intoxication And Gender Over The Day
 
 - Majority of alcohol-related accidents occur late at night (midnight to 5:00 am)
 - Very few accidents involving alcohol in the morning 
@@ -412,9 +424,6 @@ gridExtra::grid.arrange(GraphFiveA, GraphFiveB,GraphFiveC,GraphFiveD,GraphFiveE)
 
 
 ### Morning
-
-Filler Words
-
 
 ``` {r Alcohol Morning}
 Master_DataframeMini <- Master_Dataframe %>% 
@@ -464,10 +473,17 @@ rm("Master_DataframeMini")
 gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
 ```
 
+# Accidents Caused By Intoxication And Gender Over The Day
+
+- Majority of alcohol-related accidents occur late at night (midnight to 5:00 am)
+- Very few accidents involving alcohol in the morning 
+- Spike in accidents among 24-year-old men getting into accidents in the morning 
+- Men between the ages of 20 and 60 remain the most at risk of getting into an accident while intoxicated during the evening and late night periods
+- Late at night, when the majority of accidents take place, more than half of all accidents are caused by drunk men
+- Women are generally involved in very few accidents involving alcohol across the board
+- At night and very late into the night, a decent-sized segment of the female population gets into accidents due to alcohol
+
 ### Mid-Day
-
-Filler Words
-
 
 ``` {r Alcohol MidDay}
 Master_DataframeMini <- Master_Dataframe %>% 
@@ -518,10 +534,17 @@ gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
 
 ```
 
-### evening
+# Accidents Caused By Intoxication And Gender Over The Day
 
-Filler Words
+- Majority of alcohol-related accidents occur late at night (midnight to 5:00 am)
+- Very few accidents involving alcohol in the morning 
+- Spike in accidents among 24-year-old men getting into accidents in the morning 
+- Men between the ages of 20 and 60 remain the most at risk of getting into an accident while intoxicated during the evening and late night periods
+- Late at night, when the majority of accidents take place, more than half of all accidents are caused by drunk men
+- Women are generally involved in very few accidents involving alcohol across the board
+- At night and very late into the night, a decent-sized segment of the female population gets into accidents due to alcohol
 
+### Evening
 
 ``` {r Alcohol Evening}
 Master_DataframeMini <- Master_Dataframe %>% 
@@ -573,10 +596,17 @@ gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
 
 ```
 
-### night
+# Accidents Caused By Intoxication And Gender Over The Day
 
-Filler Words
+- Majority of alcohol-related accidents occur late at night (midnight to 5:00 am)
+- Very few accidents involving alcohol in the morning 
+- Spike in accidents among 24-year-old men getting into accidents in the morning 
+- Men between the ages of 20 and 60 remain the most at risk of getting into an accident while intoxicated during the evening and late night periods
+- Late at night, when the majority of accidents take place, more than half of all accidents are caused by drunk men
+- Women are generally involved in very few accidents involving alcohol across the board
+- At night and very late into the night, a decent-sized segment of the female population gets into accidents due to alcohol
 
+### Night
 
 ``` {r Alcohol Night}
 Master_DataframeMini <- Master_Dataframe %>% 
@@ -628,10 +658,17 @@ gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
 
 ```
 
-### late_night
+# Accidents Caused By Intoxication And Gender Over The Day
 
-Filler Words
+- Majority of alcohol-related accidents occur late at night (midnight to 5:00 am)
+- Very few accidents involving alcohol in the morning 
+- Spike in accidents among 24-year-old men getting into accidents in the morning 
+- Men between the ages of 20 and 60 remain the most at risk of getting into an accident while intoxicated during the evening and late night periods
+- Late at night, when the majority of accidents take place, more than half of all accidents are caused by drunk men
+- Women are generally involved in very few accidents involving alcohol across the board
+- At night and very late into the night, a decent-sized segment of the female population gets into accidents due to alcohol
 
+### Late Night
 
 ``` {r Alcohol Late Night}
 Master_DataframeMini <- Master_Dataframe %>% 
@@ -684,7 +721,7 @@ gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
 ```
 
 
-## Graph 6: Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex 
+# Relationship between Hour of Day and Age of Persons Involved in Accidents, Colored by Injury Severity and Faceted by Sex 
 
 - Younger individuals tend to be involved in most fatal and non-fatal accidents throughout the day.
 - Spread of age decreases throughout the day and is smaller at night.
@@ -713,7 +750,6 @@ ggplot(temp_df, aes(y = Age, x = Injury_Severity_Basic)) +
 
 ```
 
-
 ## Boxplot of Age by Injury Severity Over Time
 
 - Accidents involving younger individuals increase over the course of the day.
@@ -724,9 +760,6 @@ ggplot(temp_df, aes(y = Age, x = Injury_Severity_Basic)) +
 
 ### Morning 
 
-Filler Words
-
-
 ``` {r Graph 8.0, fig.cap="Boxplot of Age by Injury Severity Morning"}
 ggplot(Master_Dataframe %>% filter(time_period == "morning"), aes(x = Injury_severity, y = Age)) +
   geom_boxplot() +
@@ -735,10 +768,15 @@ ggplot(Master_Dataframe %>% filter(time_period == "morning"), aes(x = Injury_sev
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
-### Midday 
+## Boxplot of Age by Injury Severity Over Time
 
-Filler Words
+- Accidents involving younger individuals increase over the course of the day.
+- Age of accidents without injury decreases by about a decade from morning to late night.
+- Mid-day period has the largest spread of age due to people of all ages being awake.
+- Spread of age narrows significantly in late night, where most accidents involve younger individuals (usually around the age of 25).
+- Exception to this are individuals who died prior to the crash, which remains an older demographic with a larger spread throughout the day.
 
+### Midday
 
 ``` {r Graph 8.1, fig.cap="Boxplot of Age by Injury Severity midday"}
 ggplot(Master_Dataframe%>% filter(time_period == "midday"), aes(x = Injury_severity, y = Age)) +
@@ -748,10 +786,15 @@ ggplot(Master_Dataframe%>% filter(time_period == "midday"), aes(x = Injury_sever
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
+## Boxplot of Age by Injury Severity Over Time
+
+- Accidents involving younger individuals increase over the course of the day.
+- Age of accidents without injury decreases by about a decade from morning to late night.
+- Mid-day period has the largest spread of age due to people of all ages being awake.
+- Spread of age narrows significantly in late night, where most accidents involve younger individuals (usually around the age of 25).
+- Exception to this are individuals who died prior to the crash, which remains an older demographic with a larger spread throughout the day.
+
 ### Evening 
-
-Filler Words
-
 
 ``` {r Graph 8.2, fig.cap="Boxplot of Age by Injury Severity evening"}
 ggplot(Master_Dataframe%>% filter(time_period == "evening"), aes(x = Injury_severity, y = Age)) +
@@ -761,10 +804,15 @@ ggplot(Master_Dataframe%>% filter(time_period == "evening"), aes(x = Injury_seve
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
+## Boxplot of Age by Injury Severity Over Time
+
+- Accidents involving younger individuals increase over the course of the day.
+- Age of accidents without injury decreases by about a decade from morning to late night.
+- Mid-day period has the largest spread of age due to people of all ages being awake.
+- Spread of age narrows significantly in late night, where most accidents involve younger individuals (usually around the age of 25).
+- Exception to this are individuals who died prior to the crash, which remains an older demographic with a larger spread throughout the day.
+
 ### Night 
-
-Filler Words
-
 
 ``` {r Graph 8.3, fig.cap="Boxplot of Age by Injury Severity night"}
 ggplot(Master_Dataframe%>% filter(time_period == "night"), aes(x = Injury_severity, y = Age)) +
@@ -774,10 +822,15 @@ ggplot(Master_Dataframe%>% filter(time_period == "night"), aes(x = Injury_severi
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
+## Boxplot of Age by Injury Severity Over Time
+
+- Accidents involving younger individuals increase over the course of the day.
+- Age of accidents without injury decreases by about a decade from morning to late night.
+- Mid-day period has the largest spread of age due to people of all ages being awake.
+- Spread of age narrows significantly in late night, where most accidents involve younger individuals (usually around the age of 25).
+- Exception to this are individuals who died prior to the crash, which remains an older demographic with a larger spread throughout the day.
+
 ### Late Night 
-
-Filler Words
-
 
 ``` {r Graph 8.4, fig.cap="Boxplot of Age by Injury Severity Late Night"}
 ggplot(Master_Dataframe%>% filter(time_period == "late_night"), aes(x = Injury_severity, y = Age)) +
@@ -788,7 +841,7 @@ ggplot(Master_Dataframe%>% filter(time_period == "late_night"), aes(x = Injury_s
 ```
 
 
-## Graph 7: Distribution of Age by Sex Involved in Accidents
+# Distribution of Age by Sex Involved in Accidents
 
 - Morning, midday, and evening: almost identical distribution of men and women
 - Late evening to late night: lower median age (25 years old) and a peak of accidents among young individuals around 17 years old
@@ -821,14 +874,11 @@ ggplot(temp_df %>% filter(!is.na(Sex) & !is.na(time_period)), aes(x = Sex, y = A
 
 # Accident Characteristics Over Time
 
-### Graph 8: Number of Accidents by Vehicle Body Type and Injury Severity
-
 - Automobiles are involved in the most accidents across all time periods.
 - Majority of vehicles on the road are automobiles.
 - Midday period sees the most serious/fatal injuries for those in automobiles.
 - Nearly `r Master_Dataframe %>% filter(Injury_severity %in% c("Fatal Injury", "Died Prior to Crash", "Suspected Serious Injury"), time_period == "midday", Vehicle_body_type == "Automobiles") %>% summarize(count = n()) %>% pull(count) %>% round(-4) %>% format(big.mark = ",", scientific = FALSE)` serious or fatal accidents occur midday from automobiles.
 - Evening period generally sees fewer serious or fatal accidents.
-- Trucks are involved in a significant number of accidents during morning and midday, but many truck accidents do not result in any injury.
 - Vans and minivans also get into accidents during morning and midday.
 
 ```{r Graph 8: Number of Accidents by Vehicle Body Type and Injury Severity}
@@ -855,7 +905,7 @@ ggplot(temp_df , aes(y = Vehicle_body_type, fill = Injury_severity)) +
     theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
-## Moving Window Analysis:
+# Moving Window Analysis:
 
 - Number of accidents per day (mean in window) decreasing over the past two decades
 - Recently saw an uptick
@@ -952,6 +1002,8 @@ ggplot(data = MW_Num_Per_Day, aes(x=Midpoint,Value))+
 rm("MW_Num_Per_Day","DayMeanFind")
 ```
 
+# Moving Window Analysis:
+
 We can see that the northeastern states have consistently been safer than the other regions and that the western states have been the greatest risk over the past twenty years. The south saw a noticeable decrease in accidents between 1996 and 2011 which the other regions echoed but to a lesser extent. The Midwest has not seen as significant an uptick recently as compared to the other regions and has nearly flat lined over the past six years.
 
 ``` {r Region Analysis Daily, message=FALSE}
@@ -1021,17 +1073,19 @@ rm("south", "west", "midwest","northeast","southMW", "westMW", "northeastMW", "m
 
 - Majority of accidents occur in July, with the fewest in February, following a cyclic pattern
 - New Year's and July 4th are very dangerous to be on the road
-- Trucks get in a significant number of accidents in the morning and midday which result in deaths at a heightened rate
+- Men get in car accidents more frequently than women no matter the time
+- Women are less likely to get into an accident due to intoxication, but the largest number of women in accidents due to alcohol is late at night
 - Minor accidents tend to involve younger individuals, whereas fatal accidents tend to involve older individuals
 - Majority of accidents occur in the South, with the fewest in the Northeast
 - South only region that does not follow a cyclic pattern over the year
-- Accidents start around 9:00 am (8:00 am on weekdays), become more dangerous around 4:00 pm, and the twilight hours are the most dangerous
+
 
 # Discussion Continued:
+- Trucks get in a significant number of accidents in the morning and midday which result in deaths at a heightened rate
+- Accidents start around 9:00 am (8:00 am on weekdays), become more dangerous around 4:00 pm, and the twilight hours are the most dangerous
 - Late-night accidents involve a significant number of young people, with the majority being men, and involve alcohol
 - Fridays and Saturdays are particularly dangerous, especially during the evening and early morning hours
-- Men get in car accidents more frequently than women
-- Women are less likely to get into an accident due to intoxication, but the largest number of women in accidents due to alcohol is late at night
+
 
 
 # References
@@ -1045,7 +1099,6 @@ citation("tidyverse")
 citation("lubridate")
 
 ```
-
 
 [1]  R Core Team (2022). R: A language and environment for statistical computing. R Foundation for Statistical Computing,
   Vienna, Austria. URL https://www.R-project.org/.
