@@ -148,8 +148,6 @@ rm("sex", "alcohol","state_code","man_coll","inj_sev","body_typ")
 
 ```
 
-# Temporal Analysis of Car Accident Data
-
 # Introduction:
 
 The goal of this analysis is to use temporal analysis techniques to better understand the root causes of traffic accidents, inform policy decisions, and educate drivers to reduce the risk of injury or death. Driving is one of the most dangerous activities that we participate in on a daily basis. Each year, `r library(dplyr); format(round(nrow(Master_Dataframe %>% filter(Injury_Severity_Basic == "Fatal")) / (max(Master_Dataframe$Accident_year)-min(Master_Dataframe$Accident_year)), digits = -2), scientific = FALSE, big.mark=",")` people die from car accidents. On a personal level, there are a lot of factors outside of your control when on the road, but one that you often can control is when you drive. Should you drive at night or wait until noon the next day? Should you drive during the holidays (in particular those that involve all-night drinking)? We should understand the root causes of traffic accidents to educate our divers, improve road infrastructure, and inform policy decisions. Using temporal analysis techniques focused on the date and time of day, we can glean insights into accident patterns and better inform people who want to change their habits to reduce their risk of getting injured or killed. While driving will always be inherently dangerous, we can take measures to minimize that risk by using data-driven insights.
@@ -169,7 +167,7 @@ The majority of accidents occur in July with the fewest in February. Surprisingl
 ```{r Graph 1: Number of Accidents by Month and Injury Severity}
 ggplot(Master_Dataframe %>% filter(!is.na(Injury_severity)), aes(x = Month_Name, fill = Injury_severity)) +
   geom_bar() +
-  labs(x = "Month", y = "Number of accidents", title = "Number of Accidents by Month and Injury Severity") +
+  labs(x = "Month", y = "Number of accidents", title = "Number of Accidents by Month and Injury Severity", fill = "Injury Severity") +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   scale_fill_manual(values = c("lightblue", "orange", "mediumpurple1", "red1", "darkred", "tan1", "indianred3"))+
   theme_minimal()
@@ -181,7 +179,7 @@ ggplot(Master_Dataframe %>% filter(!is.na(Injury_severity)), aes(x = Month_Name,
 
 We can see that the south accounts for the majority of accidents and the northeast region accounts for the least. When adjusting the scales to not be uniform we can see a normal distribution of accidents in the Midwest, northeast, and west regions centered around August. The south remains at a similar level across months.
 
-```{r Graph 2: Number of Accidents per Month}
+```{r Graph 2: Number of Accidents per Month, fig.width = 12}
 APM <- ggplot(Master_Dataframe %>% filter(!is.na(Datetime)), aes(x = month(Datetime, label = TRUE))) +
   geom_bar() +
   ggtitle("Number of Accidents per Month") + 
@@ -356,7 +354,7 @@ gridExtra::grid.arrange(AgeSexOne, AgeSexTwo)
 ```
 
 
-## Accidents Caused By Intoxication By Gender Over The Day {.tabset}
+## Accidents Caused By Intoxication And Gender Over The Day {.tabset}
 
 We can see that the majority of accidents involving alcohol occur late at night (midnight to 5:00 am) which is followed by the mid-day (noon to 5 pm) and nighttime (8:00 pm to midnight) periods. 
 
@@ -467,7 +465,7 @@ gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
 
 ```
 
-### evening
+### Evening
 ``` {r Alcohol Evening}
 Master_DataframeMini <- Master_Dataframe %>% 
   filter(time_period == "evening") 
@@ -518,7 +516,7 @@ gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
 
 ```
 
-### night
+### Night
 ``` {r Alcohol Night}
 Master_DataframeMini <- Master_Dataframe %>% 
   filter(time_period == "night") 
@@ -569,7 +567,7 @@ gridExtra::grid.arrange(AgeSexAlcOne, AgeSexAlcTwo)
 
 ```
 
-### late_night
+### Late Night
 ``` {r Alcohol Late Night}
 Master_DataframeMini <- Master_Dataframe %>% 
   filter(time_period == "late_night") 
@@ -732,7 +730,6 @@ ggplot(temp_df %>% filter(!is.na(Sex) & !is.na(time_period)), aes(x = Sex, y = A
 
 We can see that across all time periods automobiles are involved in the most accidents. This is unsurprising since the majority of vehicles on the road are automobiles. Most of the serious/fatal injuries of those in automobiles take place during the midday period when nearly `r Master_Dataframe %>% filter(Injury_severity %in% c("Fatal Injury", "Died Prior to Crash", "Suspected Serious Injury"), time_period == "midday", Vehicle_body_type == "Automobiles") %>% summarize(count = n()) %>% pull(count) %>% round(-4) %>% format(big.mark = ",", scientific = FALSE)` accidents occur in which there is a serious or fatal injury (or suspected). During the evening there are generally far fewer serious or fatal accidents which is commensurate with the generally fewer number of accidents at that time.
 
-
 Trucks are involved in a significant number of accidents during the morning and at midday, but many of them do not result in any injury. Vans and minivans also get into accidents in the morning and midday, but many more of those result in more injuries or deaths than with trucks (as a proportion of accidents vans are involved in).
 
 ```{r Graph 8: Number of Accidents by Vehicle Body Type and Injury Severity}
@@ -783,7 +780,8 @@ ggplot(accidents_per_day, aes(x = Date, y = res1)) + geom_point(alpha = 0.1) +
   ggtitle("Residuals from Linear Regression")+
   stat_smooth(method = "loess", se = FALSE)
 ```
-There is a significant curve that has critical points around 2005 and 2012 with a linear regression fit suggesting that the linear model does not accurately reflect the dataset. Despite our attempt to control for the trend in the data, our simple linear model does not capture the trend well.
+
+There is a large curve that has critical points around 2005 and 2012 with a linear regression fit suggesting that the linear model does not accurately reflect the dataset. Despite our attempt to control for the trend in the data, our simple linear model does not capture the trend well.
 
 ```{r Seasonal Analysis 2}
 # Plot 3: Accidents per Day with Quadratic Regression
@@ -842,12 +840,12 @@ accidents_per_day$MonthTwo <- month(accidents_per_day$Date, label=TRUE)
 
 ggplot(accidents_per_day, aes(x = MonthTwo, y = res3)) + 
   geom_boxplot() + 
-  labs(y = "Loess Residual")
+  labs(y = "Loess Residual", x = "Month")
 ```
 We can see that the plot follows a yearly oscillation cycle which peaks during the summer time and is the lowest during the winter. Since driving conditions are highly regional, it is difficult to glean to what extent the model is accurately accounting for changes in driving conditions or habits. Therefore, it is important to understand the regional factors before moving forward.
 
 #### Regional Analysis of first order residuals
-``` {r Added to explore seasonality further}
+``` {r Added to explore seasonality further, fig.width = 12}
 Master_DataframePerDay <- Master_Dataframe %>%
   group_by(region, Month_Name, Date) %>%
   summarize(per_day = n(), .groups = 'drop')
@@ -882,7 +880,7 @@ ggplot(d3, aes(x = MonthTwo, y = Resid.lev)) + geom_boxplot()  + labs(x = "Month
 
 The spreads among months are generally consistent across months with slightly larger spreads in May, July, and September. We can also identify that the data in September is skewed towards lower values than predicted.
 
-``` {r Exploring seasonality 3}
+``` {r Exploring seasonality 3, fig.width = 12}
 
 d3$YearTwo <- year(accidents_per_day$Date) 
 
@@ -893,7 +891,7 @@ ggplot(d3, aes(x = YearTwo, y = Resid.lev)) + geom_point(col = "grey", cex = .6)
 
 We can see that the residuals generally fit the data well from September until May, but during the summer there has been a decline in data values as compared to predicted values over time. This could suggest a gradual offset in the periodicity of the two decades of data. We will fit a loess model to see if the trends for each month are monotonic by adopting a robust loess which controls for possible outliers in the data.
 
-``` {r Exploring seasonality 4}
+``` {r Exploring seasonality 4, fig.width = 12}
 
 ggplot(d3, aes(x = YearTwo, y = Resid.lev)) + geom_point(col = "grey", cex = .6)  + 
      stat_smooth(method = "loess", se = FALSE, 
@@ -1101,17 +1099,3 @@ citation("lubridate")
 
 [6]  Garrett Grolemund, Hadley Wickham (2011). Dates and Times Made Easy with lubridate. Journal of Statistical Software,
   40(3), 1-25. URL https://www.jstatsoft.org/v40/i03/.
-
-  
-
-
-
-
-# Look into modeling and looking for outliers like I did on the group HW
-
-# I should find what state is most dangerous for July 4th and New Years, Also view just Feb to see what is going on with the line
-
-# What leads to fatal accidents? (Subset data or mutate a column identifying fatal and facet)
-
-# Maybe look at deaths of children and where the collisions take place, like are sideswipes more dangerous cause theyre in the back seat?
-
