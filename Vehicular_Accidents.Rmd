@@ -724,38 +724,7 @@ ggplot(temp_df %>% filter(!is.na(Sex) & !is.na(time_period)), aes(x = Sex, y = A
 
 
 
-# Accident Characteristics Over Time
-
-### Graph 8: Number of Accidents by Vehicle Body Type and Injury Severity
-
-We can see that across all time periods automobiles are involved in the most accidents. This is unsurprising since the majority of vehicles on the road are automobiles. Most of the serious/fatal injuries of those in automobiles take place during the midday period when nearly `r Master_Dataframe %>% filter(Injury_severity %in% c("Fatal Injury", "Died Prior to Crash", "Suspected Serious Injury"), time_period == "midday", Vehicle_body_type == "Automobiles") %>% summarize(count = n()) %>% pull(count) %>% round(-4) %>% format(big.mark = ",", scientific = FALSE)` accidents occur in which there is a serious or fatal injury (or suspected). During the evening there are generally far fewer serious or fatal accidents which is commensurate with the generally fewer number of accidents at that time.
-
-Trucks are involved in a significant number of accidents during the morning and at midday, but many of them do not result in any injury. Vans and minivans also get into accidents in the morning and midday, but many more of those result in more injuries or deaths than with trucks (as a proportion of accidents vans are involved in).
-
-```{r Graph 8: Number of Accidents by Vehicle Body Type and Injury Severity}
-
-temp_df <- Master_Dataframe %>% 
-  filter(time_period != "unknown") %>% 
-  mutate(time_period = fct_relevel(time_period, "morning", "midday", "evening", "night", "late_night")) %>%
-  mutate(time_period = fct_recode(time_period,
-                                   "Morning" = "morning",
-                                   "Midday" = "midday",
-                                   "Evening" = "evening",
-                                   "Night" = "night",
-                                   "Late Night" = "late_night"))
-
-ggplot(temp_df , aes(y = Vehicle_body_type, fill = Injury_severity)) +
-    geom_bar(position = "stack") +
-    labs(y = "Vehicle body type", x = "Number of accidents", title = "Number of Accidents by Vehicle Body Type and Injury Severity")+
-    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-    scale_fill_manual(values = c("lightblue", "orange", "mediumpurple1", "red1", "darkred", "tan1", "indianred3"))+
-    theme_minimal()+
-    theme(legend.position = "bottom", # Move legend to bottom
-          legend.title = element_blank())  +
-    facet_wrap( ~ time_period, nrow = 1)+
-    theme(axis.text.x = element_text(angle = 90, hjust = 1))
-```
-
+# Analysis Of Large Time Scales
 
 ### Graph 9: Seasonal Analysis
 Below we will begin an exploration of the trends in the number of accidents.
@@ -1061,7 +1030,7 @@ rm("south", "west", "midwest","northeast","southMW", "westMW", "northeastMW", "m
 
 # Discussion:
 
-There are clear patterns and trends in car accidents that can be identified based on the time of year and time of the day which can be made more specific using factors such as age or gender. The majority of accidents occur in July, with the fewest in February, following a cyclic pattern. Additionally, New Years and July 4th are very dangerous times to be on the road. Most car accidents occur midday, with vehicles used for commercial purposes such as trucks involved in more accidents during the morning and midday, which are more likely to result in a death. Across the entire day, accidents tend to involve younger individuals, whereas fatal accidents tend to involve older individuals than non-fatal accidents.
+There are clear patterns and trends in car accidents that can be identified based on the time of year and time of the day which can be made more specific using factors such as age or gender. The majority of accidents occur in July, with the fewest in February, following a cyclic pattern. Additionally, New Years and July 4th are very dangerous times to be on the road. Across the entire day, accidents tend to involve younger individuals, whereas fatal accidents tend to involve older individuals than non-fatal accidents.
 
 
 The majority of accidents occur in the South and the fewest in the Northeast, with the Northeast, Midwest, and Western regions following a cyclic pattern of accidents by month, while the South remains high year-round. Across the country, accidents start to occur around 9:00 am (8:00 am on weekdays), kicking into high gear around 4:00 pm, and driving becomes more dangerous during the twilight hours. A significant number of young people get into accidents late at night, with the majority being men. During the twilight hours, there are also the most accidents involving alcohol. Fridays and Saturdays are particularly dangerous, especially during the evening and early morning hours, while mornings through midday on weekends are generally safer. 
